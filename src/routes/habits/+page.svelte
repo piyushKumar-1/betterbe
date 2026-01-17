@@ -1,15 +1,15 @@
 <!--
-	Habits List Page - Modern Design
+	Habits List Page - Native Mobile Feel
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getAllHabits } from '$lib/db/habits';
-	import { calculateMomentum, getMomentumArrow } from '$lib/analytics/momentum';
+	import { calculateMomentum } from '$lib/analytics/momentum';
 	import { calculateStreaks } from '$lib/analytics/streaks';
 	import type { Habit } from '$lib/db/schema';
 	import type { MomentumData } from '$lib/analytics/momentum';
 	import type { StreakData } from '$lib/analytics/streaks';
-	import { Plus, TrendingUp, TrendingDown, Minus, Flame, Trophy, Archive, Eye, EyeOff } from 'lucide-svelte';
+	import { Plus, ChevronRight, Flame, Trophy, TrendingUp, TrendingDown, Minus, Eye, EyeOff } from 'lucide-svelte';
 
 	let habits = $state<Habit[]>([]);
 	let momentum = $state<Map<string, MomentumData>>(new Map());
@@ -19,22 +19,33 @@
 
 	async function loadHabits() {
 		loading = true;
-		const allHabits = await getAllHabits();
-		habits = allHabits;
+		habits = await getAllHabits();
+		loading = false;
+
+		// Load analytics in background
+		loadAnalytics(habits);
+	}
+
+	async function loadAnalytics(allHabits: Habit[]) {
+		// Calculate all in parallel
+		const results = await Promise.all(
+			allHabits.map(async (habit) => ({
+				id: habit.id,
+				m: await calculateMomentum(habit.id),
+				s: await calculateStreaks(habit.id)
+			}))
+		);
 
 		const momentumMap = new Map<string, MomentumData>();
 		const streakMap = new Map<string, StreakData>();
-
-		for (const habit of allHabits) {
-			const m = await calculateMomentum(habit.id);
-			const s = await calculateStreaks(habit.id);
-			momentumMap.set(habit.id, m);
-			streakMap.set(habit.id, s);
-		}
+		
+		results.forEach(r => {
+			momentumMap.set(r.id, r.m);
+			streakMap.set(r.id, r.s);
+		});
 
 		momentum = momentumMap;
 		streaks = streakMap;
-		loading = false;
 	}
 
 	onMount(() => {
@@ -44,16 +55,6 @@
 	function getDisplayedHabits(): Habit[] {
 		if (showArchived) return habits;
 		return habits.filter(h => !h.archived);
-	}
-
-	function getHabitTypeLabel(type: string): string {
-		switch (type) {
-			case 'binary': return 'Yes/No';
-			case 'numeric': return 'Count';
-			case 'duration': return 'Duration';
-			case 'scale': return 'Scale';
-			default: return type;
-		}
 	}
 
 	function getMomentumIcon(direction: string) {
@@ -70,17 +71,19 @@
 </script>
 
 <div class="container">
-	<header class="page-header animate-fade-in">
+	<!-- Large Title -->
+	<header class="header">
 		<h1>Habits</h1>
 		<a href="/habits/new" class="btn btn-primary">
-			<Plus size={18} />
+			<Plus size={20} strokeWidth={2.5} />
 			New
 		</a>
 	</header>
 
-	<div class="filters animate-fade-in">
+	<!-- Filter Toggle -->
+	<div class="filter-row">
 		<button 
-			class="filter-btn"
+			class="filter-toggle"
 			class:active={showArchived}
 			onclick={() => showArchived = !showArchived}
 		>
@@ -94,83 +97,80 @@
 	</div>
 
 	{#if loading}
-		<div class="habit-grid">
+		<div class="habits-list">
 			{#each [1, 2, 3] as _}
-				<div class="habit-card skeleton-card">
-					<div class="skeleton" style="height: 24px; width: 70%; margin-bottom: 8px;"></div>
-					<div class="skeleton" style="height: 16px; width: 40%; margin-bottom: 16px;"></div>
-					<div class="skeleton" style="height: 48px; width: 100%;"></div>
+				<div class="habit-row skeleton-row">
+					<div style="flex: 1;">
+						<div class="skeleton" style="width: 60%; height: 18px; margin-bottom: 8px;"></div>
+						<div class="skeleton" style="width: 40%; height: 14px;"></div>
+					</div>
 				</div>
 			{/each}
 		</div>
 	{:else if getDisplayedHabits().length === 0}
-		<div class="empty-state animate-fade-in">
-			<div class="empty-icon">📊</div>
+		<div class="empty-state">
+			<span class="empty-icon">📊</span>
 			<h3>No habits yet</h3>
-			<p>Create habits to start tracking</p>
-			<a href="/habits/new" class="btn btn-primary mt-4">
-				<Plus size={18} />
+			<p>Track what matters to you</p>
+			<a href="/habits/new" class="btn btn-primary">
+				<Plus size={20} />
 				Create Habit
 			</a>
 		</div>
 	{:else}
-		<ul class="habit-grid">
+		<div class="habits-list">
 			{#each getDisplayedHabits() as habit, i (habit.id)}
 				{@const m = momentum.get(habit.id)}
 				{@const s = streaks.get(habit.id)}
 
-				<li class="habit-card animate-slide-up" class:archived={habit.archived} style="animation-delay: {i * 50}ms">
-					<a href="/habits/{habit.id}" class="habit-link">
-						<div class="habit-header">
-							<h3 class="habit-name">{habit.name}</h3>
+				<a 
+					href="/habits/{habit.id}" 
+					class="habit-row animate-slide-up"
+					class:archived={habit.archived}
+					style="animation-delay: {i * 40}ms"
+				>
+					<div class="habit-content">
+						<span class="habit-name">{habit.name}</span>
+						<div class="habit-stats">
+							{#if s && s.currentStreak > 0}
+								<span class="stat-item">
+									<Flame size={14} />
+									{s.currentStreak}
+								</span>
+							{/if}
+							{#if s && s.longestStreak > 0}
+								<span class="stat-item best">
+									<Trophy size={14} />
+									{s.longestStreak}
+								</span>
+							{/if}
 							{#if m}
-								<div class="momentum-indicator" style="color: {getMomentumColor(m.direction)}">
-									<svelte:component this={getMomentumIcon(m.direction)} size={18} />
-								</div>
+								<span class="stat-item" style="color: {getMomentumColor(m.direction)}">
+									<svelte:component this={getMomentumIcon(m.direction)} size={14} />
+								</span>
 							{/if}
 						</div>
-
-						<div class="habit-meta">
-							<span class="habit-type-badge">{getHabitTypeLabel(habit.type)}</span>
-							{#if habit.targetValue && habit.unit}
-								<span>· {habit.targetValue} {habit.unit}</span>
-							{/if}
-						</div>
-
-						{#if s}
-							<div class="streak-row">
-								<div class="streak-item">
-									<Flame size={16} class="streak-icon current" />
-									<span class="streak-value">{s.currentStreak}</span>
-									<span class="streak-label">current</span>
-								</div>
-								<div class="streak-item">
-									<Trophy size={16} class="streak-icon best" />
-									<span class="streak-value">{s.longestStreak}</span>
-									<span class="streak-label">best</span>
-								</div>
-							</div>
-						{/if}
-
-						{#if habit.archived}
-							<div class="archived-badge">
-								<Archive size={12} />
-								Archived
-							</div>
-						{/if}
-					</a>
-				</li>
+					</div>
+					<ChevronRight size={20} class="chevron" />
+				</a>
 			{/each}
-		</ul>
+		</div>
 	{/if}
 </div>
 
 <style>
-	.filters {
+	.header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 		margin-bottom: var(--space-4);
 	}
 
-	.filter-btn {
+	.filter-row {
+		margin-bottom: var(--space-4);
+	}
+
+	.filter-toggle {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -184,139 +184,107 @@
 		transition: all var(--transition-fast);
 	}
 
-	.filter-btn:hover,
-	.filter-btn.active {
+	.filter-toggle:active,
+	.filter-toggle.active {
+		background: var(--color-surface-solid);
 		color: var(--color-text);
-		border-color: var(--color-border-hover);
-		background: var(--color-surface);
 	}
 
-	.habit-grid {
-		list-style: none;
-		display: grid;
-		gap: var(--space-4);
+	.habits-list {
+		display: flex;
+		flex-direction: column;
 	}
 
-	.habit-card {
-		background: var(--color-surface);
-		backdrop-filter: blur(20px);
-		border: 1px solid var(--color-border);
+	.habit-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		background: var(--color-surface-solid);
+		text-decoration: none;
+		color: inherit;
+		margin-bottom: 1px;
+		transition: background var(--transition-tap);
+	}
+
+	.habit-row:first-child {
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+	}
+
+	.habit-row:last-child {
+		border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+		margin-bottom: 0;
+	}
+
+	.habit-row:only-child {
 		border-radius: var(--radius-lg);
-		transition: all var(--transition-normal);
-		overflow: hidden;
 	}
 
-	.habit-card:hover {
-		border-color: var(--color-border-hover);
-		transform: translateY(-2px);
-		box-shadow: var(--shadow-md);
+	.habit-row:active {
+		background: var(--color-surface-active);
 	}
 
-	.habit-card.archived {
+	.habit-row.archived {
 		opacity: 0.5;
 	}
 
-	.habit-link {
-		display: block;
-		padding: var(--space-4);
-		color: inherit;
-		text-decoration: none;
-	}
-
-	.habit-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: var(--space-2);
+	.habit-content {
+		flex: 1;
+		min-width: 0;
 	}
 
 	.habit-name {
-		font-size: 1rem;
+		display: block;
+		font-size: 1.0625rem;
 		font-weight: 600;
+		margin-bottom: 4px;
 	}
 
-	.momentum-indicator {
+	.habit-stats {
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: 50%;
-		background: var(--color-surface-hover);
+		gap: var(--space-3);
 	}
 
-	.habit-meta {
-		font-size: 0.75rem;
-		color: var(--color-text-muted);
-		margin-bottom: var(--space-4);
-	}
-
-	.habit-type-badge {
-		padding: var(--space-1) var(--space-2);
-		background: var(--color-surface-hover);
-		border-radius: var(--radius-sm);
-	}
-
-	.streak-row {
-		display: flex;
-		gap: var(--space-6);
-		padding-top: var(--space-3);
-		border-top: 1px solid var(--color-border);
-	}
-
-	.streak-item {
+	.stat-item {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.streak-item :global(.streak-icon.current) {
+		gap: 4px;
+		font-size: 0.875rem;
 		color: var(--color-warning);
 	}
 
-	.streak-item :global(.streak-icon.best) {
+	.stat-item.best {
 		color: var(--color-accent);
 	}
 
-	.streak-value {
-		font-size: 1.125rem;
-		font-weight: 700;
-	}
-
-	.streak-label {
-		font-size: 0.75rem;
+	.habit-row :global(.chevron) {
 		color: var(--color-text-muted);
 	}
 
-	.archived-badge {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
-		margin-top: var(--space-3);
-		padding: var(--space-1) var(--space-2);
-		font-size: 0.75rem;
-		color: var(--color-text-muted);
-		background: var(--color-surface-hover);
-		border-radius: var(--radius-sm);
+	.skeleton-row {
+		cursor: default;
 	}
 
-	/* Skeleton */
-	.skeleton-card {
-		padding: var(--space-4);
-	}
-
-	/* Empty state */
+	/* Empty State */
 	.empty-state {
-		padding: var(--space-10) var(--space-4);
+		text-align: center;
+		padding: var(--space-12) var(--space-4);
 	}
 
 	.empty-icon {
 		font-size: 4rem;
+		display: block;
 		margin-bottom: var(--space-4);
 	}
 
 	.empty-state h3 {
 		font-size: 1.25rem;
 		margin-bottom: var(--space-2);
+	}
+
+	.empty-state p {
+		color: var(--color-text-muted);
+		margin-bottom: var(--space-6);
 	}
 </style>

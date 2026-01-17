@@ -26,118 +26,108 @@
 <svelte:head>
 	<title>{APP_NAME}</title>
 	<meta name="description" content="Analytics-first habit & goal tracker" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 	<meta name="theme-color" content="#0a0a0f" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="mobile-web-app-capable" content="yes" />
 </svelte:head>
 
 <div class="app">
 	<main class="main-content">
-		{@render children()}
+		<div class="page-wrapper">
+			{@render children()}
+		</div>
 	</main>
 
-	<nav class="bottom-nav">
-		<div class="nav-inner">
-			{#each navItems as item}
-				<a 
-					href={item.href} 
-					class="nav-item"
-					class:active={isActive(item.href)}
-				>
-					<span class="nav-icon">
-						<item.icon size={22} strokeWidth={isActive(item.href) ? 2.5 : 2} />
-					</span>
-					<span class="nav-label">{item.label}</span>
-					{#if isActive(item.href)}
-						<span class="nav-indicator"></span>
-					{/if}
-				</a>
-			{/each}
-		</div>
+	<!-- iOS-style Tab Bar -->
+	<nav class="tab-bar">
+		{#each navItems as item}
+			<a 
+				href={item.href} 
+				class="tab-item"
+				class:active={isActive(item.href)}
+			>
+				<span class="tab-icon">
+					<item.icon size={24} strokeWidth={isActive(item.href) ? 2.5 : 1.5} />
+				</span>
+				<span class="tab-label">{item.label}</span>
+			</a>
+		{/each}
 	</nav>
 </div>
 
 <style>
 	.app {
 		min-height: 100vh;
+		min-height: 100dvh;
 		display: flex;
 		flex-direction: column;
+		background: var(--color-bg);
 	}
 
 	.main-content {
 		flex: 1;
-		padding-bottom: 90px;
+		overflow-y: auto;
+		overflow-x: hidden;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-y: contain;
 	}
 
-	.bottom-nav {
+	.page-wrapper {
+		min-height: 100%;
+		padding-bottom: calc(80px + var(--safe-bottom));
+	}
+
+	/* iOS-style Tab Bar */
+	.tab-bar {
 		position: fixed;
 		bottom: 0;
 		left: 0;
 		right: 0;
-		z-index: 100;
-		padding: var(--space-3) var(--space-4);
-		padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
-	}
-
-	.nav-inner {
 		display: flex;
 		justify-content: space-around;
-		background: rgba(22, 22, 31, 0.8);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-xl);
-		padding: var(--space-2) var(--space-3);
-		max-width: 400px;
-		margin: 0 auto;
+		background: rgba(20, 20, 25, 0.92);
+		backdrop-filter: saturate(180%) blur(20px);
+		-webkit-backdrop-filter: saturate(180%) blur(20px);
+		border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+		padding-top: var(--space-2);
+		padding-bottom: max(var(--space-2), var(--safe-bottom));
+		z-index: 1000;
 	}
 
-	.nav-item {
-		position: relative;
+	.tab-item {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
-		padding: var(--space-2) var(--space-4);
+		padding: var(--space-1) 0;
 		color: var(--color-text-muted);
 		text-decoration: none;
-		transition: all var(--transition-fast);
-		border-radius: var(--radius-md);
+		transition: color var(--transition-fast);
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	.nav-item:hover {
-		color: var(--color-text-secondary);
+	.tab-item:active {
+		opacity: 0.7;
 	}
 
-	.nav-item.active {
+	.tab-item.active {
 		color: var(--color-primary);
 	}
 
-	.nav-icon {
+	.tab-icon {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: transform var(--transition-bounce);
+		width: 28px;
+		height: 28px;
 	}
 
-	.nav-item.active .nav-icon {
-		transform: scale(1.1);
-	}
-
-	.nav-label {
-		font-size: 0.65rem;
+	.tab-label {
+		font-size: 0.625rem;
 		font-weight: 500;
-		letter-spacing: 0.02em;
-	}
-
-	.nav-indicator {
-		position: absolute;
-		top: 0;
-		left: 50%;
-		transform: translateX(-50%);
-		width: 4px;
-		height: 4px;
-		background: var(--color-primary);
-		border-radius: var(--radius-full);
-		box-shadow: 0 0 8px var(--color-primary);
+		letter-spacing: 0.01em;
 	}
 </style>
