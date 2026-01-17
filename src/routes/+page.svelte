@@ -6,7 +6,7 @@
 	import { APP_NAME } from '$lib/config/branding';
 	import { selectedDate, formattedDate, isToday, habits, todayCheckIns } from '$lib/stores/ui';
 	import { getActiveHabits } from '$lib/db/habits';
-	import { getCheckInsForDate, toggleBinaryCheckIn, createCheckIn, getCheckIn, deleteCheckIn } from '$lib/db/checkins';
+	import { getCheckInsForDate, toggleBinaryCheckIn, createCheckIn, updateCheckIn, deleteCheckIn } from '$lib/db/checkins';
 	import { calculateMomentum } from '$lib/analytics/momentum';
 	import type { Habit, CheckIn } from '$lib/db/schema';
 	import type { MomentumData } from '$lib/analytics/momentum';
@@ -93,25 +93,31 @@
 				return new Map(map);
 			});
 		} else if (value > 0) {
-			// Delete existing and create new
 			if (existing) {
-				await deleteCheckIn(existing.id);
-			}
-			await createCheckIn({
-				habitId: habit.id,
-				value,
-				effectiveDate: $selectedDate
-			});
-			todayCheckIns.update(map => {
-				map.set(habit.id, {
-					id: crypto.randomUUID(),
+				// Update existing check-in (don't delete and recreate)
+				await updateCheckIn(existing.id, { value });
+				todayCheckIns.update(map => {
+					map.set(habit.id, { ...existing, value });
+					return new Map(map);
+				});
+			} else {
+				// Create new check-in
+				await createCheckIn({
 					habitId: habit.id,
 					value,
-					timestamp: new Date(),
-					effectiveDate: $selectedDate.toISOString().split('T')[0]
+					effectiveDate: $selectedDate
 				});
-				return new Map(map);
-			});
+				todayCheckIns.update(map => {
+					map.set(habit.id, {
+						id: crypto.randomUUID(),
+						habitId: habit.id,
+						value,
+						timestamp: new Date(),
+						effectiveDate: $selectedDate.toISOString().split('T')[0]
+					});
+					return new Map(map);
+				});
+			}
 		}
 	}
 
@@ -148,7 +154,23 @@
 
 	function getCompletionStats() {
 		const total = $habits.length;
-		const completed = $habits.filter(h => $todayCheckIns.has(h.id)).length;
+		const completed = $habits.filter(h => {
+			const checkIn = $todayCheckIns.get(h.id);
+			if (!checkIn) return false;
+			
+			// For binary, any check-in counts
+			if (h.type === 'binary') return true;
+			
+			// For numeric/duration/scale, check if target is met
+			if (h.targetValue) {
+				if (h.targetDirection === 'at_least') return checkIn.value >= h.targetValue;
+				if (h.targetDirection === 'at_most') return checkIn.value <= h.targetValue;
+				if (h.targetDirection === 'exactly') return checkIn.value === h.targetValue;
+			}
+			
+			// If no target, any value counts
+			return checkIn.value > 0;
+		}).length;
 		return { total, completed, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
 	}
 

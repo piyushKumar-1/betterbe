@@ -157,6 +157,78 @@
 			{/if}
 		</div>
 
+		<!-- Line Chart (7 days visible, scroll for more) -->
+		{#if heatmapData && heatmapData.cells.length > 0}
+			{@const chartDays = heatmapData.cells.slice(-30).reverse()}
+			{@const maxVal = Math.max(...chartDays.map(c => c.value), 1)}
+			<section class="section animate-slide-up" style="animation-delay: 150ms">
+				<h2 class="section-title">Daily Trend</h2>
+				<div class="chart-card">
+					<div class="chart-scroll hide-scrollbar">
+						<div class="chart-container" style="width: {chartDays.length * 50}px">
+							<svg class="line-chart" viewBox="0 0 {chartDays.length * 50} 120" preserveAspectRatio="none">
+								<!-- Grid lines -->
+								{#each [0.25, 0.5, 0.75] as frac}
+									<line 
+										x1="0" y1={100 - frac * 100} 
+										x2={chartDays.length * 50} y2={100 - frac * 100}
+										stroke="var(--color-border)" stroke-dasharray="4,4" stroke-width="1"
+									/>
+								{/each}
+								
+								<!-- Line path -->
+								<path
+									d="M {chartDays.map((c, i) => `${i * 50 + 25},${100 - (c.value / maxVal) * 80}`).join(' L ')}"
+									fill="none"
+									stroke="var(--color-primary)"
+									stroke-width="2.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+								
+								<!-- Data points -->
+								{#each chartDays as cell, i}
+									{@const y = 100 - (cell.value / maxVal) * 80}
+									<circle 
+										cx={i * 50 + 25} cy={y} r="4"
+										fill="var(--color-bg)"
+										stroke="var(--color-primary)"
+										stroke-width="2"
+									/>
+								{/each}
+							</svg>
+							
+							<!-- X-axis labels -->
+							<div class="chart-labels">
+								{#each chartDays as cell, i}
+									{@const date = new Date(cell.date)}
+									<div class="chart-label" style="left: {i * 50 + 25}px">
+										<span class="label-day">{date.getDate()}</span>
+										<span class="label-month">{date.toLocaleDateString('en', { weekday: 'short' }).substring(0, 2)}</span>
+									</div>
+								{/each}
+							</div>
+							
+							<!-- Value labels on hover/visible -->
+							<div class="chart-values">
+								{#each chartDays as cell, i}
+									{@const y = 100 - (cell.value / maxVal) * 80}
+									<div 
+										class="chart-value" 
+										class:visible={cell.value > 0}
+										style="left: {i * 50 + 25}px; bottom: {80 - (y - 20)}px"
+									>
+										{cell.value}
+									</div>
+								{/each}
+							</div>
+						</div>
+					</div>
+					<div class="chart-hint">← Scroll for more history</div>
+				</div>
+			</section>
+		{/if}
+
 		<!-- Rolling Averages -->
 		{#if averagesData}
 			<section class="section animate-slide-up" style="animation-delay: 200ms">
@@ -212,6 +284,10 @@
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div class="actions-backdrop" onclick={() => showActions = false}>
 				<div class="actions-menu animate-slide-up" onclick={(e) => e.stopPropagation()}>
+					<a href="/habits/{habit.id}/edit" class="action-item">
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+						Edit Habit
+					</a>
 					{#if habit.archived}
 						<button class="action-item" onclick={handleUnarchive}>
 							<RotateCcw size={18} />
@@ -355,6 +431,89 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		text-align: right;
+	}
+
+	/* Line Chart - Apple Fitness style */
+	.chart-card {
+		background: var(--color-surface-solid);
+		border-radius: var(--radius-lg);
+		padding: var(--space-4);
+		padding-bottom: var(--space-2);
+	}
+
+	.chart-scroll {
+		overflow-x: auto;
+		overflow-y: hidden;
+		direction: rtl;
+	}
+
+	.chart-container {
+		direction: ltr;
+		position: relative;
+		height: 160px;
+		min-width: 350px;
+	}
+
+	.line-chart {
+		width: 100%;
+		height: 100px;
+		display: block;
+	}
+
+	.chart-labels {
+		position: relative;
+		height: 40px;
+		margin-top: var(--space-2);
+	}
+
+	.chart-label {
+		position: absolute;
+		transform: translateX(-50%);
+		text-align: center;
+	}
+
+	.label-day {
+		display: block;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.label-month {
+		display: block;
+		font-size: 0.625rem;
+		color: var(--color-text-muted);
+		text-transform: uppercase;
+	}
+
+	.chart-values {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 100px;
+		pointer-events: none;
+	}
+
+	.chart-value {
+		position: absolute;
+		transform: translateX(-50%);
+		font-size: 0.625rem;
+		font-weight: 600;
+		color: var(--color-primary);
+		opacity: 0;
+		transition: opacity var(--transition-fast);
+	}
+
+	.chart-value.visible {
+		opacity: 1;
+	}
+
+	.chart-hint {
+		font-size: 0.6875rem;
+		color: var(--color-text-muted);
+		text-align: center;
+		margin-top: var(--space-2);
 	}
 
 	/* Heatmap */

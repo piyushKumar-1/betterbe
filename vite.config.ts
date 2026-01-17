@@ -11,8 +11,8 @@ export default defineConfig({
 				name: 'BetterBe',
 				short_name: 'BetterBe',
 				description: 'Analytics-first habit & goal tracker',
-				theme_color: '#1a1a2e',
-				background_color: '#1a1a2e',
+				theme_color: '#0a0a0f',
+				background_color: '#0a0a0f',
 				display: 'standalone',
 				icons: [
 					{
@@ -28,7 +28,42 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}']
+				// Cache all static assets
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+
+				// Runtime caching for navigation/API
+				runtimeCaching: [
+					{
+						// Cache-first strategy for all pages with 24h expiration
+						urlPattern: ({ request }) => request.mode === 'navigate',
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'pages-cache',
+							expiration: {
+								maxAgeSeconds: 24 * 60 * 60 // 24 hours
+							},
+							cacheableResponse: {
+								statuses: [0, 200]
+							}
+						}
+					},
+					{
+						// Cache static assets with stale-while-revalidate
+						urlPattern: /\.(?:js|css|woff2?)$/,
+						handler: 'StaleWhileRevalidate',
+						options: {
+							cacheName: 'static-assets',
+							expiration: {
+								maxEntries: 100,
+								maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
+							}
+						}
+					}
+				]
+			},
+			// Only check for updates once per day
+			devOptions: {
+				enabled: false
 			}
 		})
 	]

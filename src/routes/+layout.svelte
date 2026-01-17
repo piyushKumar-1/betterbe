@@ -76,7 +76,7 @@
 
 	.page-wrapper {
 		min-height: 100%;
-		padding-bottom: calc(80px + var(--safe-bottom));
+		padding-bottom: calc(100px + var(--safe-bottom));
 	}
 
 	/* iOS-style Tab Bar */
