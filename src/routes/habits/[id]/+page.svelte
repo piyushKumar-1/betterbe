@@ -16,7 +16,7 @@
 	import type { RollingAverageData } from '$lib/analytics/rolling-average';
 	import type { MomentumData } from '$lib/analytics/momentum';
 	import type { StreakData } from '$lib/analytics/streaks';
-	import { ArrowLeft, MoreVertical, TrendingUp, TrendingDown, Minus, Flame, Trophy, Target, Archive, RotateCcw } from 'lucide-svelte';
+	import { ArrowLeft, TrendingUp, TrendingDown, Minus, Flame, Trophy, Target, Archive, RotateCcw } from 'lucide-svelte';
 
 	let habit = $state<Habit | null>(null);
 	let heatmapData = $state<HeatmapData | null>(null);
@@ -24,7 +24,7 @@
 	let momentumData = $state<MomentumData | null>(null);
 	let streakData = $state<StreakData | null>(null);
 	let loading = $state(true);
-	let showActions = $state(false);
+
 
 	async function loadHabit() {
 		const id = $page.params.id;
@@ -72,7 +72,6 @@
 		if (!habit) return;
 		await updateHabit(habit.id, { archived: false });
 		habit = { ...habit, archived: false };
-		showActions = false;
 	}
 
 	function getMomentumIcon(direction: string) {
@@ -101,9 +100,18 @@
 				<ArrowLeft size={20} />
 			</a>
 			<div style="flex: 1"></div>
-			<button class="btn btn-icon btn-ghost" onclick={() => showActions = !showActions}>
-				<MoreVertical size={20} />
-			</button>
+			<a href="{base}/habits/{habit.id}/edit" class="btn btn-icon btn-ghost">
+				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+			</a>
+			{#if habit.archived}
+				<button class="btn btn-icon btn-ghost" onclick={handleUnarchive} title="Restore Habit">
+					<RotateCcw size={20} />
+				</button>
+			{:else}
+				<button class="btn btn-icon btn-ghost" onclick={handleArchive} style="color: var(--color-error)" title="Archive Habit">
+					<Archive size={20} />
+				</button>
+			{/if}
 		</header>
 
 		<!-- Hero section -->
@@ -282,30 +290,7 @@
 			</section>
 		{/if}
 
-		<!-- Actions menu -->
-		{#if showActions}
-			<!-- svelte-ignore a11y_click_events_have_key_events -->
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div class="actions-backdrop" onclick={() => showActions = false}>
-				<div class="actions-menu animate-slide-up" onclick={(e) => e.stopPropagation()}>
-					<a href="{base}/habits/{habit.id}/edit" class="action-item">
-						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-						Edit Habit
-					</a>
-					{#if habit.archived}
-						<button class="action-item" onclick={handleUnarchive}>
-							<RotateCcw size={18} />
-							Restore Habit
-						</button>
-					{:else}
-						<button class="action-item danger" onclick={handleArchive}>
-							<Archive size={18} />
-							Archive Habit
-						</button>
-					{/if}
-				</div>
-			</div>
-		{/if}
+
 	{/if}
 </div>
 
@@ -571,46 +556,5 @@
 		height: 12px;
 	}
 
-	/* Actions */
-	.actions-backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		z-index: 100;
-	}
 
-	.actions-menu {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		background: var(--color-surface-solid);
-		border-top: 1px solid var(--color-border);
-		border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-		padding: var(--space-4);
-		padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
-	}
-
-	.action-item {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		width: 100%;
-		padding: var(--space-4);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		color: var(--color-text);
-		font: inherit;
-		cursor: pointer;
-		transition: all var(--transition-fast);
-	}
-
-	.action-item:hover {
-		background: var(--color-surface-hover);
-	}
-
-	.action-item.danger {
-		color: var(--color-error);
-	}
 </style>
