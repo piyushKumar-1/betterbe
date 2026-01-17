@@ -96,6 +96,33 @@ export async function updateGoal(id: string, updates: Partial<Pick<Goal, 'name' 
 }
 
 /**
+ * Update habits linked to a goal
+ */
+export async function updateGoalHabits(goalId: string, habitIds: string[]): Promise<void> {
+    await db.transaction('rw', [db.goalHabits], async () => {
+        // Remove existing links
+        await db.goalHabits.where('goalId').equals(goalId).delete();
+
+        // Add new links with equal weight
+        if (habitIds.length > 0) {
+            const weight = 1 / habitIds.length;
+            for (const habitId of habitIds) {
+                const goalHabit: GoalHabit = {
+                    id: generateId(),
+                    goalId,
+                    habitId,
+                    weight
+                };
+                await db.goalHabits.add(goalHabit);
+            }
+        }
+    });
+
+    // Update goal timestamp
+    await db.goals.update(goalId, { updatedAt: new Date() });
+}
+
+/**
  * Delete a goal and its links
  */
 export async function deleteGoal(id: string): Promise<void> {
@@ -105,3 +132,4 @@ export async function deleteGoal(id: string): Promise<void> {
         await db.goals.delete(id);
     });
 }
+

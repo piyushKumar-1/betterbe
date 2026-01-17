@@ -1,19 +1,22 @@
 <!--
-	Edit Goal Page
+	Edit Goal Page - With Habit Selection
 -->
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { getGoal, updateGoal } from '$lib/db/goals';
-	import type { Goal } from '$lib/db/schema';
-	import { ArrowLeft, Check } from 'lucide-svelte';
+	import { getGoal, updateGoal, getGoalHabits, updateGoalHabits } from '$lib/db/goals';
+	import { getActiveHabits } from '$lib/db/habits';
+	import type { Goal, Habit } from '$lib/db/schema';
+	import { ArrowLeft, Check, Link2 } from 'lucide-svelte';
 
 	let goal = $state<Goal | null>(null);
 	let name = $state('');
 	let description = $state('');
 	let deadline = $state('');
+	let habits = $state<Habit[]>([]);
+	let selectedHabitIds = $state<Set<string>>(new Set());
 	let saving = $state(false);
 	let error = $state('');
 	let loading = $state(true);
@@ -37,12 +40,27 @@
 		name = g.name;
 		description = g.description ?? '';
 		deadline = g.deadline;
+
+		// Load all habits and current links
+		habits = await getActiveHabits();
+		const linkedHabits = await getGoalHabits(id);
+		selectedHabitIds = new Set(linkedHabits.map(h => h.habitId));
+		
 		loading = false;
 	}
 
 	onMount(() => {
 		loadGoal();
 	});
+
+	function toggleHabit(habitId: string) {
+		selectedHabitIds = new Set(selectedHabitIds);
+		if (selectedHabitIds.has(habitId)) {
+			selectedHabitIds.delete(habitId);
+		} else {
+			selectedHabitIds.add(habitId);
+		}
+	}
 
 	async function handleSubmit(e: Event) {
 		e.preventDefault();
@@ -68,6 +86,9 @@
 				description: description.trim() || undefined,
 				deadline: deadline
 			});
+
+			// Update linked habits
+			await updateGoalHabits(goal.id, Array.from(selectedHabitIds));
 
 			goto(`${base}/goals/${goal.id}`);
 		} catch (err) {
@@ -124,8 +145,39 @@
 				/>
 			</div>
 
-			<div class="info-box">
-				<p class="hint">Linked habits cannot be changed. Create a new goal to link different habits.</p>
+			<!-- Habit Selection -->
+			<div class="form-group">
+				<label>
+					<Link2 size={16} />
+					Linked Habits
+				</label>
+				<p class="hint mb-3">Select habits to track for this goal. Each habit has equal weight.</p>
+				
+				{#if habits.length === 0}
+					<p class="text-muted">No habits available. Create habits first.</p>
+				{:else}
+					<div class="habit-select-grid">
+						{#each habits as habit}
+							<button 
+								type="button"
+								class="habit-select-item"
+								class:selected={selectedHabitIds.has(habit.id)}
+								onclick={() => toggleHabit(habit.id)}
+							>
+								<span class="habit-check">
+									{#if selectedHabitIds.has(habit.id)}
+										<Check size={16} />
+									{/if}
+								</span>
+								<span class="habit-name">{habit.name}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
+
+				{#if selectedHabitIds.size > 0}
+					<p class="selected-count">{selectedHabitIds.size} habit{selectedHabitIds.size > 1 ? 's' : ''} selected</p>
+				{/if}
 			</div>
 
 			{#if error}
@@ -164,16 +216,76 @@
 		gap: var(--space-2);
 	}
 
-	.info-box {
-		padding: var(--space-4);
-		background: var(--color-surface-solid);
-		border-radius: var(--radius-md);
-		font-size: 0.875rem;
+	.form-group label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 
 	.hint {
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
+	}
+
+	.mb-3 {
+		margin-bottom: var(--space-3);
+	}
+
+	.habit-select-grid {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.habit-select-item {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		color: var(--color-text);
+		font: inherit;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		text-align: left;
+	}
+
+	.habit-select-item:hover {
+		background: var(--color-surface-hover);
+		border-color: var(--color-border-hover);
+	}
+
+	.habit-select-item.selected {
+		background: var(--color-primary-soft);
+		border-color: var(--color-primary);
+	}
+
+	.habit-check {
+		width: 20px;
+		height: 20px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-sm);
+		background: var(--color-surface-hover);
+		color: var(--color-primary);
+	}
+
+	.habit-select-item.selected .habit-check {
+		background: var(--color-primary);
+		color: white;
+	}
+
+	.habit-name {
+		flex: 1;
+	}
+
+	.selected-count {
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		margin-top: var(--space-2);
 	}
 
 	.error {
