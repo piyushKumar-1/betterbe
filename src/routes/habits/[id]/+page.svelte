@@ -157,9 +157,9 @@
 			{/if}
 		</div>
 
-		<!-- Line Chart (7 days visible, scroll for more) -->
+		<!-- Line Chart (today visible on right, scroll left for history) -->
 		{#if heatmapData && heatmapData.cells.length > 0}
-			{@const chartDays = heatmapData.cells.slice(-30).reverse()}
+			{@const chartDays = heatmapData.cells}
 			{@const maxVal = Math.max(...chartDays.map(c => c.value), 1)}
 			<section class="section animate-slide-up" style="animation-delay: 150ms">
 				<h2 class="section-title">Daily Trend</h2>
@@ -202,14 +202,17 @@
 							<div class="chart-labels">
 								{#each chartDays as cell, i}
 									{@const date = new Date(cell.date)}
-									<div class="chart-label" style="left: {i * 50 + 25}px">
-										<span class="label-day">{date.getDate()}</span>
-										<span class="label-month">{date.toLocaleDateString('en', { weekday: 'short' }).substring(0, 2)}</span>
+									{@const isToday = cell.date === new Date().toISOString().split('T')[0]}
+									<div class="chart-label" class:today={isToday} style="left: {i * 50 + 25}px">
+										<span class="label-day">{isToday ? 'Today' : date.getDate()}</span>
+										{#if !isToday}
+											<span class="label-month">{date.toLocaleDateString('en', { weekday: 'short' }).substring(0, 2)}</span>
+										{/if}
 									</div>
 								{/each}
 							</div>
 							
-							<!-- Value labels on hover/visible -->
+							<!-- Value labels -->
 							<div class="chart-values">
 								{#each chartDays as cell, i}
 									{@const y = 100 - (cell.value / maxVal) * 80}
@@ -224,7 +227,7 @@
 							</div>
 						</div>
 					</div>
-					<div class="chart-hint">← Scroll for more history</div>
+					<div class="chart-hint">Scroll left for older →</div>
 				</div>
 			</section>
 		{/if}
@@ -484,6 +487,11 @@
 		font-size: 0.625rem;
 		color: var(--color-text-muted);
 		text-transform: uppercase;
+	}
+
+	.chart-label.today .label-day {
+		color: var(--color-primary);
+		font-size: 0.6875rem;
 	}
 
 	.chart-values {

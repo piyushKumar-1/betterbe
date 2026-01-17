@@ -7,13 +7,14 @@
 	import { getHabit } from '$lib/db/habits';
 	import { getAllCheckInsForHabit } from '$lib/db/checkins';
 	import type { Goal, Habit } from '$lib/db/schema';
-	import { Plus, Target, Clock, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Minus, Check, Calendar } from 'lucide-svelte';
+	import { Plus, Target, Clock, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Minus, Check, Calendar, Sparkles } from 'lucide-svelte';
 
 	interface GoalWithProgress extends Goal {
 		linkedHabits: string[];
 		progress: number;
 		daysRemaining: number;
 		trend: number[]; // Last 7 days progress for sparkline
+		elapsedRatio: number; // How much of the goal duration has passed (0-1)
 	}
 
 	let goals = $state<GoalWithProgress[]>([]);
@@ -23,11 +24,18 @@
 	function getOverallStatus(): { label: string; color: string; icon: any } {
 		if (goals.length === 0) return { label: 'No Goals', color: 'var(--color-text-muted)', icon: Target };
 		
-		const avgProgress = goals.reduce((sum, g) => sum + g.progress, 0) / goals.length;
-		const overdueCount = goals.filter(g => g.daysRemaining < 0).length;
-		const onTrackCount = goals.filter(g => g.progress >= 0.7 && g.daysRemaining >= 0).length;
+		// Filter out goals that just started (less than 10% elapsed)
+		const matureGoals = goals.filter(g => g.elapsedRatio >= 0.1);
 		
-		if (overdueCount > goals.length / 2) {
+		// If all goals are just started
+		if (matureGoals.length === 0) {
+			return { label: 'Just Started', color: 'var(--color-accent)', icon: Sparkles };
+		}
+		
+		const avgProgress = matureGoals.reduce((sum, g) => sum + g.progress, 0) / matureGoals.length;
+		const overdueCount = matureGoals.filter(g => g.daysRemaining < 0).length;
+		
+		if (overdueCount > matureGoals.length / 2) {
 			return { label: 'Needs Attention', color: 'var(--color-error)', icon: AlertCircle };
 		}
 		if (avgProgress >= 0.7 && overdueCount === 0) {
@@ -88,7 +96,14 @@
 			}
 
 			const progress = goalHabits.length > 0 ? Math.min(1, totalProgress) : 0;
-			goalsWithProgress.push({ ...goal, linkedHabits, progress, daysRemaining, trend: dailyTrend });
+
+			// Calculate elapsed ratio (how much of goal duration has passed)
+			const goalStart = new Date(goal.createdAt);
+			const totalDuration = Math.max(1, Math.ceil((deadline.getTime() - goalStart.getTime()) / (1000 * 60 * 60 * 24)));
+			const daysPassed = Math.ceil((today.getTime() - goalStart.getTime()) / (1000 * 60 * 60 * 24));
+			const elapsedRatio = Math.min(1, Math.max(0, daysPassed / totalDuration));
+
+			goalsWithProgress.push({ ...goal, linkedHabits, progress, daysRemaining, trend: dailyTrend, elapsedRatio });
 		}
 
 		goals = goalsWithProgress;

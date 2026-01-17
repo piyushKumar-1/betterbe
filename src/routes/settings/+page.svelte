@@ -1,15 +1,15 @@
-<!--
-	Settings Page - Native Mobile Feel
--->
 <script lang="ts">
 	import { APP_NAME, APP_TAGLINE } from '$lib/config/branding';
 	import { exportAsJson, exportAsCsv, importFromJson } from '$lib/export/json';
-	import { Download, Upload, FileJson, FileSpreadsheet, Cloud, ChevronRight, Shield, AlertCircle, CheckCircle } from 'lucide-svelte';
+	import { db } from '$lib/db/schema';
+	import { Download, Upload, FileJson, FileSpreadsheet, Cloud, ChevronRight, Shield, AlertCircle, CheckCircle, Trash2 } from 'lucide-svelte';
 
 	let exporting = $state(false);
 	let importing = $state(false);
 	let importMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let fileInput: HTMLInputElement;
+	let showClearConfirm = $state(false);
+	let clearing = $state(false);
 
 	async function handleJsonExport() {
 		exporting = true;
@@ -54,6 +54,30 @@
 		} finally {
 			importing = false;
 			input.value = '';
+		}
+	}
+
+	async function handleClearAllData() {
+		clearing = true;
+		try {
+			await db.transaction('rw', [
+				db.habits, db.checkIns, db.checkInContexts,
+				db.goals, db.goalHabits, db.successCriteria, db.habitSchedules
+			], async () => {
+				await db.habits.clear();
+				await db.checkIns.clear();
+				await db.checkInContexts.clear();
+				await db.goals.clear();
+				await db.goalHabits.clear();
+				await db.successCriteria.clear();
+				await db.habitSchedules.clear();
+			});
+			showClearConfirm = false;
+			window.location.reload();
+		} catch (err) {
+			console.error('Failed to clear data:', err);
+		} finally {
+			clearing = false;
 		}
 	}
 </script>
@@ -136,6 +160,19 @@
 		</div>
 	</div>
 
+	<!-- Danger Zone -->
+	<div class="section-header danger">Danger Zone</div>
+	<div class="settings-group danger">
+		<button class="settings-row danger-row" onclick={() => showClearConfirm = true}>
+			<Trash2 size={22} class="row-icon danger" />
+			<div class="row-content">
+				<span class="row-title">Clear All Data</span>
+				<span class="row-subtitle">Delete all habits, goals, and check-ins</span>
+			</div>
+			<ChevronRight size={18} class="row-action" />
+		</button>
+	</div>
+
 	<!-- About -->
 	<div class="about-section">
 		<span class="about-icon">📊</span>
@@ -144,6 +181,28 @@
 		<span class="about-version">Version 0.1.0</span>
 	</div>
 </div>
+
+<!-- Clear Data Confirmation -->
+{#if showClearConfirm}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="sheet-backdrop" onclick={() => showClearConfirm = false}>
+		<div class="sheet animate-slide-up" onclick={(e) => e.stopPropagation()}>
+			<div class="pull-indicator"></div>
+			<div class="sheet-content">
+				<AlertCircle size={48} style="color: var(--color-error); margin-bottom: var(--space-4);" />
+				<h3>Clear All Data?</h3>
+				<p>This will permanently delete all your habits, goals, check-ins, and settings. This cannot be undone.</p>
+			</div>
+			<div class="sheet-actions">
+				<button class="btn btn-secondary" onclick={() => showClearConfirm = false}>Cancel</button>
+				<button class="btn btn-danger" onclick={handleClearAllData} disabled={clearing}>
+					{clearing ? 'Clearing...' : 'Delete Everything'}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.header {
@@ -284,5 +343,72 @@
 	.about-version {
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
+	}
+
+	/* Danger Zone */
+	.section-header.danger {
+		color: var(--color-error);
+	}
+
+	.settings-group.danger {
+		border: 1px solid rgba(248, 113, 113, 0.2);
+	}
+
+	.settings-row :global(.row-icon.danger) {
+		color: var(--color-error);
+	}
+
+	/* Sheet */
+	.sheet-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.6);
+		z-index: 2000;
+		display: flex;
+		align-items: flex-end;
+	}
+
+	.sheet {
+		width: 100%;
+		background: var(--color-surface-solid);
+		border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+		padding: var(--space-2) var(--space-4) var(--space-4);
+		padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+	}
+
+	.sheet-content {
+		text-align: center;
+		padding: var(--space-4);
+	}
+
+	.sheet-content h3 {
+		margin-bottom: var(--space-2);
+	}
+
+	.sheet-content p {
+		color: var(--color-text-muted);
+		font-size: 0.875rem;
+	}
+
+	.sheet-actions {
+		display: flex;
+		gap: var(--space-3);
+	}
+
+	.sheet-actions .btn {
+		flex: 1;
+	}
+
+	.btn-danger {
+		background: var(--color-error);
+		color: white;
+	}
+
+	.pull-indicator {
+		width: 36px;
+		height: 5px;
+		background: var(--color-border);
+		border-radius: var(--radius-full);
+		margin: var(--space-2) auto var(--space-4);
 	}
 </style>
