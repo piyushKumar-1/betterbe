@@ -91,6 +91,13 @@ export async function getAllCheckInsForHabit(habitId: string): Promise<CheckIn[]
 }
 
 /**
+ * Get all check-ins (for global analytics)
+ */
+export async function getAllCheckIns(): Promise<CheckIn[]> {
+    return db.checkIns.toArray();
+}
+
+/**
  * Update a check-in value
  */
 export async function updateCheckIn(id: string, updates: { value?: number; note?: string }): Promise<void> {

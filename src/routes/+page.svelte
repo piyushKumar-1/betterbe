@@ -124,14 +124,12 @@
 
 	function increment(habit: Habit) {
 		const current = $todayCheckIns.get(habit.id)?.value ?? 0;
-		const step = habit.type === 'duration' ? 5 : 1;
-		updateNumericValue(habit, current + step);
+		updateNumericValue(habit, current + 1);
 	}
 
 	function decrement(habit: Habit) {
 		const current = $todayCheckIns.get(habit.id)?.value ?? 0;
-		const step = habit.type === 'duration' ? 5 : 1;
-		updateNumericValue(habit, current - step);
+		updateNumericValue(habit, current - 1);
 	}
 
 	function startEdit(habitId: string, currentValue: number) {

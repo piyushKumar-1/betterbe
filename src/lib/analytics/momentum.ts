@@ -20,17 +20,13 @@ export interface MomentumData {
 
 /**
  * Calculate momentum score for a habit
+ * Can accept pre-loaded check-ins to avoid DB calls
  */
-export async function calculateMomentum(
-    habitId: string,
+export function calculateMomentumSync(
+    habit: Habit,
+    checkIns: Array<{ effectiveDate: string; value: number }>,
     windowDays: number = 30
-): Promise<MomentumData> {
-    const habit = await getHabit(habitId);
-    if (!habit) {
-        return { score: 0, direction: 'stable', slopePerDay: 0, dataPoints: 0 };
-    }
-
-    const checkIns = await getAllCheckInsForHabit(habitId);
+): MomentumData {
     const checkInMap = new Map<string, number>();
     checkIns.forEach(c => checkInMap.set(c.effectiveDate, c.value));
 
@@ -65,6 +61,19 @@ export async function calculateMomentum(
         slopePerDay: slope,
         dataPoints: dataPoints.length
     };
+}
+
+export async function calculateMomentum(
+    habitId: string,
+    windowDays: number = 30
+): Promise<MomentumData> {
+    const habit = await getHabit(habitId);
+    if (!habit) {
+        return { score: 0, direction: 'stable', slopePerDay: 0, dataPoints: 0 };
+    }
+
+    const checkIns = await getAllCheckInsForHabit(habitId);
+    return calculateMomentumSync(habit, checkIns, windowDays);
 }
 
 /**

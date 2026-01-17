@@ -3,7 +3,7 @@
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
 	import { APP_NAME } from '$lib/config/branding';
-	import { Home, BarChart3, Target, Settings } from 'lucide-svelte';
+	import { Home, BarChart3, Target, Settings, User } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -12,6 +12,7 @@
 		{ href: '/', label: 'Today', icon: Home },
 		{ href: '/habits', label: 'Habits', icon: BarChart3 },
 		{ href: '/goals', label: 'Goals', icon: Target },
+		{ href: '/profile', label: 'Profile', icon: User },
 		{ href: '/settings', label: 'Settings', icon: Settings }
 	];
 
