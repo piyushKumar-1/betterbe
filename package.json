@@ -6,6 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
+		"build:mobile": "CAPACITOR_BUILD=true vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -29,6 +30,9 @@
 		"vitest": "^4.0.17"
 	},
 	"dependencies": {
+		"@capacitor/android": "^8.0.1",
+		"@capacitor/cli": "^8.0.1",
+		"@capacitor/core": "^8.0.1",
 		"d3": "^7.9.0",
 		"dexie": "^4.2.1",
 		"lucide-svelte": "^0.562.0"

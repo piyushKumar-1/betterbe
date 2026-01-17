@@ -16,7 +16,7 @@ const config = {
 			strict: true
 		}),
 		paths: {
-			base: dev ? '' : '/betterbe'
+			base: (dev || process.env.CAPACITOR_BUILD) ? '' : '/betterbe'
 		},
 		prerender: {
 			handleMissingId: 'ignore',

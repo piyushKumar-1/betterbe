@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BetterBe</string>
+    <string name="title_activity_main">BetterBe</string>
+    <string name="package_name">com.betterbe.app</string>
+    <string name="custom_url_scheme">com.betterbe.app</string>
+</resources>
