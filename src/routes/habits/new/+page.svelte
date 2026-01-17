@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { createHabit } from '$lib/db/habits';
 	import type { HabitType, TargetDirection } from '$lib/db/schema';
 	import { ArrowLeft, Check, Hash, Clock, Gauge } from 'lucide-svelte';
@@ -44,7 +45,7 @@
 				targetDirection
 			});
 
-			goto('/habits');
+			goto(`${base}/habits`);
 		} catch (err) {
 			error = 'Failed to create habit';
 			console.error(err);
@@ -56,7 +57,7 @@
 
 <div class="container">
 	<header class="page-header animate-fade-in">
-		<a href="/habits" class="btn btn-icon btn-ghost">
+		<a href="{base}/habits" class="btn btn-icon btn-ghost">
 			<ArrowLeft size={20} />
 		</a>
 		<h1>New Habit</h1>

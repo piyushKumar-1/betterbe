@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { APP_NAME } from '$lib/config/branding';
 	import { selectedDate, formattedDate, isToday, habits, todayCheckIns } from '$lib/stores/ui';
 	import { getActiveHabits } from '$lib/db/habits';
@@ -244,7 +245,7 @@
 			<span class="empty-icon">✨</span>
 			<h3>No habits yet</h3>
 			<p>Create your first habit to get started</p>
-			<a href="/habits/new" class="btn btn-primary">
+			<a href="{base}/habits/new" class="btn btn-primary">
 				<Plus size={20} />
 				Create Habit
 			</a>

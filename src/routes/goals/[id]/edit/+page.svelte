@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { getGoal, updateGoal } from '$lib/db/goals';
 	import type { Goal } from '$lib/db/schema';
 	import { ArrowLeft, Check } from 'lucide-svelte';
@@ -20,7 +21,7 @@
 	async function loadGoal() {
 		const id = $page.params.id;
 		if (!id) {
-			goto('/goals');
+			goto(`${base}/goals`);
 			return;
 		}
 
@@ -28,7 +29,7 @@
 		const g = await getGoal(id);
 		
 		if (!g) {
-			goto('/goals');
+			goto(`${base}/goals`);
 			return;
 		}
 
@@ -68,7 +69,7 @@
 				deadline: deadline
 			});
 
-			goto(`/goals/${goal.id}`);
+			goto(`${base}/goals/${goal.id}`);
 		} catch (err) {
 			error = 'Failed to save changes';
 			console.error(err);
@@ -86,7 +87,7 @@
 		</div>
 	{:else if goal}
 		<header class="header">
-			<a href="/goals/{goal.id}" class="btn btn-icon btn-ghost">
+			<a href="{base}/goals/{goal.id}" class="btn btn-icon btn-ghost">
 				<ArrowLeft size={20} />
 			</a>
 			<h1>Edit Goal</h1>

@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { getHabit, archiveHabit, updateHabit } from '$lib/db/habits';
 	import { generateHeatmapData } from '$lib/analytics/heatmap';
 	import { calculateRollingAverages } from '$lib/analytics/rolling-average';
@@ -28,7 +29,7 @@
 	async function loadHabit() {
 		const id = $page.params.id;
 		if (!id) {
-			goto('/habits');
+			goto(`${base}/habits`);
 			return;
 		}
 
@@ -36,7 +37,7 @@
 		
 		const h = await getHabit(id);
 		if (!h) {
-			goto('/habits');
+			goto(`${base}/habits`);
 			return;
 		}
 
@@ -64,7 +65,7 @@
 	async function handleArchive() {
 		if (!habit) return;
 		await archiveHabit(habit.id);
-		goto('/habits');
+		goto(`${base}/habits`);
 	}
 
 	async function handleUnarchive() {
@@ -96,7 +97,7 @@
 		</div>
 	{:else if habit}
 		<header class="page-header animate-fade-in">
-			<a href="/habits" class="btn btn-icon btn-ghost">
+			<a href="{base}/habits" class="btn btn-icon btn-ghost">
 				<ArrowLeft size={20} />
 			</a>
 			<div style="flex: 1"></div>
@@ -287,7 +288,7 @@
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div class="actions-backdrop" onclick={() => showActions = false}>
 				<div class="actions-menu animate-slide-up" onclick={(e) => e.stopPropagation()}>
-					<a href="/habits/{habit.id}/edit" class="action-item">
+					<a href="{base}/habits/{habit.id}/edit" class="action-item">
 						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
 						Edit Habit
 					</a>

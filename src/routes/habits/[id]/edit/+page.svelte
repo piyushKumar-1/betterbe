@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { getHabit, updateHabit } from '$lib/db/habits';
 	import type { Habit, HabitType, TargetDirection } from '$lib/db/schema';
 	import { ArrowLeft, Check } from 'lucide-svelte';
@@ -22,7 +23,7 @@
 	async function loadHabit() {
 		const id = $page.params.id;
 		if (!id) {
-			goto('/habits');
+			goto(`${base}/habits`);
 			return;
 		}
 
@@ -30,7 +31,7 @@
 		const h = await getHabit(id);
 		
 		if (!h) {
-			goto('/habits');
+			goto(`${base}/habits`);
 			return;
 		}
 
@@ -69,7 +70,7 @@
 				targetDirection
 			});
 
-			goto(`/habits/${habit.id}`);
+			goto(`${base}/habits/${habit.id}`);
 		} catch (err) {
 			error = 'Failed to save changes';
 			console.error(err);
@@ -87,7 +88,7 @@
 		</div>
 	{:else if habit}
 		<header class="header">
-			<a href="/habits/{habit.id}" class="btn btn-icon btn-ghost">
+			<a href="{base}/habits/{habit.id}" class="btn btn-icon btn-ghost">
 				<ArrowLeft size={20} />
 			</a>
 			<h1>Edit Habit</h1>

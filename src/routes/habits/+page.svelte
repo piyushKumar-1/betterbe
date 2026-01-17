@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { getAllHabits } from '$lib/db/habits';
 	import { calculateMomentum } from '$lib/analytics/momentum';
 	import { calculateStreaks } from '$lib/analytics/streaks';
@@ -74,7 +75,7 @@
 	<!-- Large Title -->
 	<header class="header">
 		<h1>Habits</h1>
-		<a href="/habits/new" class="btn btn-primary">
+		<a href="{base}/habits/new" class="btn btn-primary">
 			<Plus size={20} strokeWidth={2.5} />
 			New
 		</a>
@@ -112,7 +113,7 @@
 			<span class="empty-icon">📊</span>
 			<h3>No habits yet</h3>
 			<p>Track what matters to you</p>
-			<a href="/habits/new" class="btn btn-primary">
+			<a href="{base}/habits/new" class="btn btn-primary">
 				<Plus size={20} />
 				Create Habit
 			</a>
@@ -124,7 +125,7 @@
 				{@const s = streaks.get(habit.id)}
 
 				<a 
-					href="/habits/{habit.id}" 
+					href="{base}/habits/{habit.id}" 
 					class="habit-row animate-slide-up"
 					class:archived={habit.archived}
 					style="animation-delay: {i * 40}ms"

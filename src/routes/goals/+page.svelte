@@ -3,6 +3,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { getActiveGoals, getGoalHabits, updateGoal, updateGoalStatus } from '$lib/db/goals';
 	import { getHabit } from '$lib/db/habits';
 	import { getAllCheckInsForHabit } from '$lib/db/checkins';
@@ -157,7 +158,7 @@
 <div class="container">
 	<header class="page-header animate-fade-in">
 		<h1>Goals</h1>
-		<a href="/goals/new" class="btn btn-primary">
+		<a href="{base}/goals/new" class="btn btn-primary">
 			<Plus size={18} />
 			New
 		</a>
@@ -178,7 +179,7 @@
 			<div class="empty-icon">🎯</div>
 			<h3>No active goals</h3>
 			<p>Set a goal to stay focused</p>
-			<a href="/goals/new" class="btn btn-primary mt-4">
+			<a href="{base}/goals/new" class="btn btn-primary mt-4">
 				<Plus size={18} />
 				Create Goal
 			</a>
@@ -199,7 +200,7 @@
 		<ul class="goal-list">
 			{#each goals as goal, i (goal.id)}
 				<li class="animate-slide-up" style="animation-delay: {i * 50}ms">
-					<a href="/goals/{goal.id}" class="goal-card">
+					<a href="{base}/goals/{goal.id}" class="goal-card">
 						<div class="goal-header">
 							<div class="goal-info">
 								<h3 class="goal-name">{goal.name}</h3>

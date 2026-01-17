@@ -1,6 +1,7 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/stores';
+	import { base } from '$app/paths';
 	import { APP_NAME } from '$lib/config/branding';
 	import { Home, BarChart3, Target, Settings } from 'lucide-svelte';
 
@@ -16,10 +17,11 @@
 
 	// Check if current route matches
 	function isActive(href: string): boolean {
+		const path = $page.url.pathname.replace(base, '');
 		if (href === '/') {
-			return $page.url.pathname === '/';
+			return path === '/' || path === '';
 		}
-		return $page.url.pathname.startsWith(href);
+		return path.startsWith(href);
 	}
 </script>
 
@@ -44,7 +46,7 @@
 	<nav class="tab-bar">
 		{#each navItems as item}
 			<a 
-				href={item.href} 
+				href="{base}{item.href}" 
 				class="tab-item"
 				class:active={isActive(item.href)}
 			>

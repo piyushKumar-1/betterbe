@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { getGoal, getGoalHabits, deleteGoal } from '$lib/db/goals';
 	import { getHabit } from '$lib/db/habits';
 	import { getAllCheckInsForHabit } from '$lib/db/checkins';
@@ -21,7 +22,7 @@
 	async function loadGoal() {
 		const id = $page.params.id;
 		if (!id) {
-			goto('/goals');
+			goto(`${base}/goals`);
 			return;
 		}
 
@@ -29,7 +30,7 @@
 
 		const g = await getGoal(id);
 		if (!g) {
-			goto('/goals');
+			goto(`${base}/goals`);
 			return;
 		}
 
@@ -73,7 +74,7 @@
 	async function handleDelete() {
 		if (!goal) return;
 		await deleteGoal(goal.id);
-		goto('/goals');
+		goto(`${base}/goals`);
 	}
 
 	function getStatusColor(): string {
@@ -92,11 +93,11 @@
 		</div>
 	{:else if goal}
 		<header class="header">
-			<a href="/goals" class="btn btn-icon btn-ghost">
+			<a href="{base}/goals" class="btn btn-icon btn-ghost">
 				<ArrowLeft size={20} />
 			</a>
 			<div style="flex: 1"></div>
-			<a href="/goals/{goal.id}/edit" class="btn btn-icon btn-ghost">
+			<a href="{base}/goals/{goal.id}/edit" class="btn btn-icon btn-ghost">
 				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
 			</a>
 			<button class="btn btn-icon btn-ghost" onclick={() => showDelete = true}>
@@ -151,7 +152,7 @@
 				<div class="section-header">Linked Habits</div>
 				<div class="habits-list">
 					{#each linkedHabits as habit}
-						<a href="/habits/{habit.id}" class="habit-row">
+						<a href="{base}/habits/{habit.id}" class="habit-row">
 							<Target size={18} />
 							<span class="habit-name">{habit.name}</span>
 							<ChevronRight size={18} class="chevron" />

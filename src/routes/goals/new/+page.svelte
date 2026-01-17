@@ -4,6 +4,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { createGoal } from '$lib/db/goals';
 	import { getActiveHabits } from '$lib/db/habits';
 	import type { Habit } from '$lib/db/schema';
@@ -58,7 +59,7 @@
 				habitIds: selectedHabitIds.size > 0 ? Array.from(selectedHabitIds) : undefined
 			});
 
-			goto('/goals');
+			goto(`${base}/goals`);
 		} catch (err) {
 			error = 'Failed to create goal';
 			console.error(err);
@@ -70,7 +71,7 @@
 
 <div class="container">
 	<header class="page-header animate-fade-in">
-		<a href="/goals" class="btn btn-icon btn-ghost">
+		<a href="{base}/goals" class="btn btn-icon btn-ghost">
 			<ArrowLeft size={20} />
 		</a>
 		<h1>New Goal</h1>
