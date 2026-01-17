@@ -266,11 +266,6 @@
 					{#if habit.type === 'binary'}
 						<!-- Binary: Tap to toggle -->
 						<button class="habit-tap-area" onclick={() => handleBinaryToggle(habit.id)}>
-							<div class="habit-check" class:checked={isCompleted}>
-								{#if isCompleted}
-									<Check size={28} strokeWidth={3} />
-								{/if}
-							</div>
 							<div class="habit-content">
 								<span class="habit-name">{habit.name}</span>
 								{#if momentum}
@@ -278,6 +273,11 @@
 										<svelte:component this={getMomentumIcon(momentum.direction)} size={14} />
 										{momentum.direction}
 									</span>
+								{/if}
+							</div>
+							<div class="habit-check" class:checked={isCompleted}>
+								{#if isCompleted}
+									<Check size={28} strokeWidth={3} />
 								{/if}
 							</div>
 						</button>
