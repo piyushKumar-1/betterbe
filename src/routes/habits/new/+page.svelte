@@ -5,8 +5,10 @@
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
 	import { createHabit } from '$lib/db/habits';
-	import type { HabitType, TargetDirection } from '$lib/db/schema';
-	import { ArrowLeft, Check, Hash, Clock, Gauge } from 'lucide-svelte';
+	import { upsertReminder } from '$lib/db/reminders';
+	import type { HabitType, TargetDirection, ReminderType } from '$lib/db/schema';
+	import { ArrowLeft, Check, Hash, Bell, Clock, Shuffle } from 'lucide-svelte';
+	import { Toggle } from '$lib/components';
 
 	let name = $state('');
 	let description = $state('');
@@ -17,11 +19,23 @@
 	let saving = $state(false);
 	let error = $state('');
 
+	// Reminder settings
+	let reminderEnabled = $state(false);
+	let reminderType = $state<ReminderType>('daily');
+	let intervalHours = $state(2);
+	let dailyTime = $state('09:00');
+	let randomWindowStart = $state('09:00');
+	let randomWindowEnd = $state('21:00');
+
 	const habitTypes = [
 		{ value: 'binary', label: 'Yes/No', icon: Check, desc: 'Did you do it?' },
-		{ value: 'numeric', label: 'Count', icon: Hash, desc: 'How many?' },
-		{ value: 'duration', label: 'Duration', icon: Clock, desc: 'How long?' },
-		{ value: 'scale', label: 'Scale', icon: Gauge, desc: 'Rate 1-10' }
+		{ value: 'numeric', label: 'Count', icon: Hash, desc: 'How many?' }
+	] as const;
+
+	const reminderTypes = [
+		{ value: 'interval', label: 'Every X hours', icon: Clock, desc: 'Repeat throughout day' },
+		{ value: 'daily', label: 'Daily', icon: Bell, desc: 'Once at specific time' },
+		{ value: 'random', label: 'Random nudge', icon: Shuffle, desc: 'Surprise me once daily' }
 	] as const;
 
 	async function handleSubmit(e: Event) {
@@ -36,7 +50,7 @@
 		error = '';
 
 		try {
-			await createHabit({
+			const habit = await createHabit({
 				name: name.trim(),
 				description: description.trim() || undefined,
 				type,
@@ -44,6 +58,18 @@
 				targetValue,
 				targetDirection
 			});
+
+			// Create reminder if enabled
+			if (reminderEnabled) {
+				await upsertReminder({
+					habitId: habit.id,
+					type: reminderType,
+					intervalHours: reminderType === 'interval' ? intervalHours : undefined,
+					dailyTime: reminderType === 'daily' ? dailyTime : undefined,
+					randomWindowStart: reminderType === 'random' ? randomWindowStart : undefined,
+					randomWindowEnd: reminderType === 'random' ? randomWindowEnd : undefined
+				});
+			}
 
 			goto(`${base}/habits`);
 		} catch (err) {
@@ -113,7 +139,7 @@
 					id="unit" 
 					type="text" 
 					bind:value={unit}
-					placeholder={type === 'duration' ? 'minutes' : type === 'numeric' ? 'times' : 'points'}
+					placeholder="times, glasses, minutes, etc."
 				/>
 			</div>
 
@@ -138,6 +164,72 @@
 						<option value="exactly">Exactly</option>
 					</select>
 				</div>
+			</div>
+		{/if}
+
+		<!-- Reminder Settings -->
+		<Toggle bind:checked={reminderEnabled} label="Enable reminders" />
+
+		{#if reminderEnabled}
+			<div class="reminder-section animate-fade-in">
+				<label>Reminder type</label>
+				<div class="reminder-grid">
+					{#each reminderTypes as r}
+						<button 
+							type="button"
+							class="reminder-card"
+							class:selected={reminderType === r.value}
+							onclick={() => reminderType = r.value}
+						>
+							<svelte:component this={r.icon} size={20} />
+							<span class="reminder-name">{r.label}</span>
+						</button>
+					{/each}
+				</div>
+
+				{#if reminderType === 'interval'}
+					<div class="form-group animate-fade-in">
+						<label for="interval">Remind every</label>
+						<div class="input-with-suffix">
+							<input 
+								id="interval" 
+								type="number" 
+								bind:value={intervalHours}
+								min="1"
+								max="12"
+							/>
+							<span class="input-suffix">hours</span>
+						</div>
+					</div>
+				{:else if reminderType === 'daily'}
+					<div class="form-group animate-fade-in">
+						<label for="daily-time">Reminder time</label>
+						<input 
+							id="daily-time" 
+							type="time" 
+							bind:value={dailyTime}
+						/>
+					</div>
+				{:else if reminderType === 'random'}
+					<div class="form-row animate-fade-in">
+						<div class="form-group">
+							<label for="random-start">Between</label>
+							<input 
+								id="random-start" 
+								type="time" 
+								bind:value={randomWindowStart}
+							/>
+						</div>
+						<div class="form-group">
+							<label for="random-end">And</label>
+							<input 
+								id="random-end" 
+								type="time" 
+								bind:value={randomWindowEnd}
+							/>
+						</div>
+					</div>
+				{/if}
 			</div>
 		{/if}
 
@@ -241,5 +333,67 @@
 		width: 100%;
 		padding: var(--space-4);
 		font-size: 1rem;
+	}
+
+	/* Reminder Section */
+	.reminder-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		padding: var(--space-4);
+		background: var(--color-surface);
+		border-radius: var(--radius-lg);
+	}
+
+	.reminder-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: var(--space-2);
+	}
+
+	.reminder-card {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-3);
+		background: var(--color-surface-hover);
+		border: 2px solid transparent;
+		border-radius: var(--radius-md);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		color: var(--color-text-secondary);
+		font: inherit;
+	}
+
+	.reminder-card:hover {
+		background: var(--color-surface-active);
+	}
+
+	.reminder-card.selected {
+		border-color: var(--color-primary);
+		background: var(--color-primary-soft);
+		color: var(--color-primary);
+	}
+
+	.reminder-name {
+		font-size: 0.75rem;
+		font-weight: 500;
+		text-align: center;
+	}
+
+	.input-with-suffix {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.input-with-suffix input {
+		flex: 1;
+	}
+
+	.input-suffix {
+		color: var(--color-text-muted);
+		font-size: 0.875rem;
 	}
 </style>

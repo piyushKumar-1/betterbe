@@ -9,13 +9,14 @@ import Dexie, { type EntityTable } from 'dexie';
 
 // ============ Types ============
 
-export type HabitType = 'binary' | 'numeric' | 'duration' | 'scale';
+export type HabitType = 'binary' | 'numeric';
 export type TargetDirection = 'at_least' | 'at_most' | 'exactly';
 export type GoalStatus = 'active' | 'achieved' | 'failed' | 'abandoned';
 export type ContextType = 'time_of_day' | 'day_of_week' | 'location' | 'tag';
 export type ScheduleType = 'daily' | 'weekly' | 'custom';
 export type CriteriaType = 'completion_rate' | 'total_value' | 'streak' | 'average';
 export type EvaluationWindow = 'total' | 'last_n_days';
+export type ReminderType = 'interval' | 'daily' | 'random';
 
 // ============ Entities ============
 
@@ -85,6 +86,22 @@ export interface HabitSchedule {
     validUntil?: string;
 }
 
+export interface HabitReminder {
+    id: string;
+    habitId: string;
+    enabled: boolean;
+    type: ReminderType;
+    // For 'interval' type: how often to remind (in hours)
+    intervalHours?: number;
+    // For 'daily' type: specific time (HH:MM format)
+    dailyTime?: string;
+    // For 'random' type: time window start/end (HH:MM format)
+    randomWindowStart?: string;
+    randomWindowEnd?: string;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
 // ============ Database ============
 
 export class BetterBeDB extends Dexie {
@@ -95,6 +112,7 @@ export class BetterBeDB extends Dexie {
     goalHabits!: EntityTable<GoalHabit, 'id'>;
     successCriteria!: EntityTable<SuccessCriterion, 'id'>;
     habitSchedules!: EntityTable<HabitSchedule, 'id'>;
+    habitReminders!: EntityTable<HabitReminder, 'id'>;
 
     constructor() {
         super('betterbe');
@@ -107,6 +125,18 @@ export class BetterBeDB extends Dexie {
             goalHabits: 'id, goalId, habitId, [goalId+habitId]',
             successCriteria: 'id, goalId, habitId',
             habitSchedules: 'id, habitId, validFrom'
+        });
+
+        // Version 2: Add habit reminders
+        this.version(2).stores({
+            habits: 'id, name, type, archived, createdAt',
+            checkIns: 'id, habitId, effectiveDate, timestamp, [habitId+effectiveDate]',
+            checkInContexts: 'id, checkInId, type',
+            goals: 'id, status, deadline',
+            goalHabits: 'id, goalId, habitId, [goalId+habitId]',
+            successCriteria: 'id, goalId, habitId',
+            habitSchedules: 'id, habitId, validFrom',
+            habitReminders: 'id, habitId, enabled, type'
         });
     }
 }

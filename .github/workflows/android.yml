@@ -9,6 +9,11 @@ on:
       - main
   workflow_dispatch:
 
+# Use a different concurrency group than pages deployment
+concurrency:
+  group: 'android-build'
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest

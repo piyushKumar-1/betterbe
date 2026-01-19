@@ -122,14 +122,14 @@
 		}
 	}
 
-	function increment(habit: Habit) {
+	async function increment(habit: Habit) {
 		const current = $todayCheckIns.get(habit.id)?.value ?? 0;
-		updateNumericValue(habit, current + 1);
+		await updateNumericValue(habit, current + 1);
 	}
 
-	function decrement(habit: Habit) {
+	async function decrement(habit: Habit) {
 		const current = $todayCheckIns.get(habit.id)?.value ?? 0;
-		updateNumericValue(habit, current - 1);
+		await updateNumericValue(habit, current - 1);
 	}
 
 	function startEdit(habitId: string, currentValue: number) {
@@ -160,7 +160,7 @@
 			// For binary, any check-in counts
 			if (h.type === 'binary') return true;
 			
-			// For numeric/duration/scale, check if target is met
+			// For numeric types, check if target is met
 			if (h.targetValue) {
 				if (h.targetDirection === 'at_least') return checkIn.value >= h.targetValue;
 				if (h.targetDirection === 'at_most') return checkIn.value <= h.targetValue;

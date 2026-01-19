@@ -83,26 +83,28 @@
 				dailyTrend.push(dayProgress);
 			}
 
-			// Calculate overall progress
+			// Calculate overall progress based on total goal duration
+			const goalStart = new Date(goal.createdAt);
+			const goalDuration = Math.max(1, Math.ceil((deadline.getTime() - goalStart.getTime()) / (1000 * 60 * 60 * 24)));
+			
 			for (const gh of goalHabits) {
 				const habit = await getHabit(gh.habitId);
 				if (habit) {
 					const checkIns = await getAllCheckInsForHabit(habit.id);
-					const goalStart = new Date(goal.createdAt);
 					const relevantCheckIns = checkIns.filter(c => new Date(c.effectiveDate) >= goalStart);
-					const totalDays = Math.max(1, Math.ceil((today.getTime() - goalStart.getTime()) / (1000 * 60 * 60 * 24)));
 					const completedDays = new Set(relevantCheckIns.map(c => c.effectiveDate)).size;
-					totalProgress += (completedDays / totalDays) * gh.weight;
+					// Progress = completed days / total goal duration (not days passed)
+					totalProgress += (completedDays / goalDuration) * gh.weight;
 				}
 			}
 
-			const progress = goalHabits.length > 0 ? Math.min(1, totalProgress) : 0;
+			// Normalize by total weight if multiple habits
+			const totalWeight = goalHabits.reduce((sum, gh) => sum + gh.weight, 0);
+			const progress = goalHabits.length > 0 ? Math.min(1, totalProgress / Math.max(1, totalWeight)) : 0;
 
 			// Calculate elapsed ratio (how much of goal duration has passed)
-			const goalStart = new Date(goal.createdAt);
-			const totalDuration = Math.max(1, Math.ceil((deadline.getTime() - goalStart.getTime()) / (1000 * 60 * 60 * 24)));
 			const daysPassed = Math.ceil((today.getTime() - goalStart.getTime()) / (1000 * 60 * 60 * 24));
-			const elapsedRatio = Math.min(1, Math.max(0, daysPassed / totalDuration));
+			const elapsedRatio = Math.min(1, Math.max(0, daysPassed / goalDuration));
 
 			goalsWithProgress.push({ ...goal, linkedHabits, progress, daysRemaining, trend: dailyTrend, elapsedRatio });
 		}
