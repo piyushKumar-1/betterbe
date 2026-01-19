@@ -25,8 +25,9 @@
 - **Activity heatmaps** — GitHub-style visualization
 
 ### 🔒 Privacy First
-- **100% local storage** — All data stays on your device
-- **No accounts required** — Works immediately
+- **Local-first by default** — All data stays on your device
+- **Optional cloud sync** — Opt-in for backup & sharing (requires backend)
+- **No accounts required** — Works immediately without sign-in
 - **Offline-first PWA** — Works without internet
 - **Export/Import** — JSON backup, CSV for spreadsheets
 
@@ -39,10 +40,11 @@
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+
+- Node.js 18+ (22+ for Capacitor builds)
 - npm or pnpm
+- Docker & Docker Compose (for backend)
 
-### Installation
+### Frontend Setup
 
 ```bash
 # Clone the repository
@@ -58,6 +60,32 @@ npm run dev
 
 The app will be available at `http://localhost:5173`
 
+### Backend Setup (Optional - for cloud sync & sharing)
+
+1. **Create environment file:**
+   ```bash
+   # Copy the example file
+   cp .env.example .env
+   
+   # Edit .env and add your credentials:
+   # - JWT_SECRET (generate with: openssl rand -base64 32)
+   # - GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET (from Google Cloud Console)
+   # - GOOGLE_REDIRECT_URI (http://localhost:5173/auth/google/callback)
+   ```
+
+2. **Start backend services:**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Verify backend is running:**
+   ```bash
+   curl http://localhost:3000/health
+   # Should return: OK
+   ```
+
+The backend API will be available at `http://localhost:3000`
+
 ### Build for Production
 
 ```bash
@@ -67,11 +95,18 @@ npm run preview
 
 ## 🛠 Tech Stack
 
+### Frontend
 - **Framework**: SvelteKit 2.0 with Svelte 5 (Runes)
 - **Database**: IndexedDB via Dexie.js (local-first)
 - **Styling**: Custom CSS with CSS variables
 - **Icons**: Lucide Svelte
 - **PWA**: @vite-pwa/sveltekit
+
+### Backend (Optional)
+- **Language**: Rust with Axum
+- **Database**: PostgreSQL
+- **Auth**: OAuth 2.0 (Google Sign In)
+- **Deployment**: Docker Compose
 
 ## 📱 Install as App
 

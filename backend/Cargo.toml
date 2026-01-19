@@ -1,0 +1,44 @@
+[package]
+name = "betterbe-api"
+version = "0.1.0"
+edition = "2021"
+description = "BetterBe API - Habit tracking backend with social auth and sharing"
+
+[dependencies]
+# Web framework
+axum = { version = "0.7", features = ["macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Database (using runtime queries without compile-time verification)
+sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "uuid", "chrono", "migrate"] }
+
+# Authentication
+jsonwebtoken = "9"
+oauth2 = "4"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Utilities
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+thiserror = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Password hashing (for refresh tokens)
+argon2 = "0.5"
+rand = "0.8"
+base64 = "0.21"
+
+[dev-dependencies]
+tokio-test = "0.4"

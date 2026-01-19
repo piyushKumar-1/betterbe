@@ -2,14 +2,33 @@
 	import { APP_NAME, APP_TAGLINE } from '$lib/config/branding';
 	import { exportAsJson, exportAsCsv, importFromJson } from '$lib/export/json';
 	import { db } from '$lib/db/schema';
-	import { Download, Upload, FileJson, FileSpreadsheet, Cloud, ChevronRight, Shield, AlertCircle, CheckCircle, Trash2 } from 'lucide-svelte';
+	import { 
+		Download, Upload, FileJson, FileSpreadsheet, Cloud, ChevronRight, 
+		Shield, AlertCircle, CheckCircle, Trash2, LogOut, User, 
+		Smartphone, Server, RefreshCw, X
+	} from 'lucide-svelte';
+	import { Toggle } from '$lib/components';
+	import { 
+		currentUser, cloudSyncEnabled, enableCloudSync, disableCloudSync,
+		syncLocalToCloud, syncCloudToLocal
+	} from '$lib/data';
+	import { isAuthenticated, signOut, authLoading } from '$lib/data/auth-store';
+	import AuthPrompt from '$lib/components/AuthPrompt.svelte';
+	import CloudSyncPrompt from '$lib/components/CloudSyncPrompt.svelte';
 
 	let exporting = $state(false);
 	let importing = $state(false);
+	let syncing = $state(false);
 	let importMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let syncMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let fileInput: HTMLInputElement;
 	let showClearConfirm = $state(false);
 	let clearing = $state(false);
+	let showAuthPrompt = $state(false);
+	let showCloudPrompt = $state(false);
+
+	// Storage mode: 'local' or 'cloud'
+	let storageMode = $derived($cloudSyncEnabled ? 'cloud' : 'local');
 
 	async function handleJsonExport() {
 		exporting = true;
@@ -80,6 +99,63 @@
 			clearing = false;
 		}
 	}
+
+	async function handleSignOut() {
+		await signOut();
+	}
+
+	function handleStorageModeChange() {
+		if (!$isAuthenticated) {
+			// Need to sign in first
+			showAuthPrompt = true;
+			return;
+		}
+
+		if ($cloudSyncEnabled) {
+			// Disable cloud sync
+			handleDisableCloud();
+		} else {
+			// Enable cloud sync
+			showCloudPrompt = true;
+		}
+	}
+
+	async function handleDisableCloud() {
+		try {
+			await disableCloudSync();
+			syncMessage = {
+				type: 'success',
+				text: 'Cloud sync disabled. Your data stays on this device.'
+			};
+		} catch (e) {
+			syncMessage = {
+				type: 'error',
+				text: e instanceof Error ? e.message : 'Failed to disable cloud sync'
+			};
+		}
+	}
+
+	async function handleSyncNow() {
+		if (!$isAuthenticated || !$cloudSyncEnabled) return;
+
+		syncing = true;
+		syncMessage = null;
+
+		try {
+			const result = await syncLocalToCloud();
+			syncMessage = {
+				type: 'success',
+				text: `Synced ${result.habits} habits, ${result.checkins} check-ins, ${result.goals} goals`
+			};
+		} catch (e) {
+			syncMessage = {
+				type: 'error',
+				text: e instanceof Error ? e.message : 'Sync failed'
+			};
+		} finally {
+			syncing = false;
+		}
+	}
 </script>
 
 <div class="container">
@@ -87,8 +163,128 @@
 		<h1>Settings</h1>
 	</header>
 
+	<!-- Account Section -->
+	<div class="section-header">Account</div>
+	<div class="settings-group">
+		{#if $isAuthenticated && $currentUser}
+			<div class="settings-row account-row">
+				<div class="avatar">
+					{#if $currentUser.avatarUrl}
+						<img src={$currentUser.avatarUrl} alt={$currentUser.name || 'Avatar'} />
+					{:else}
+						<User size={24} />
+					{/if}
+				</div>
+				<div class="row-content">
+					<span class="row-title">{$currentUser.name || $currentUser.email}</span>
+					<span class="row-subtitle">{$currentUser.email}</span>
+				</div>
+			</div>
+			<button class="settings-row" onclick={handleSignOut} disabled={$authLoading}>
+				<LogOut size={22} class="row-icon logout" />
+				<div class="row-content">
+					<span class="row-title">Sign Out</span>
+					<span class="row-subtitle">Keep your data locally</span>
+				</div>
+				<ChevronRight size={18} class="row-action" />
+			</button>
+		{:else}
+			<button class="settings-row" onclick={() => showAuthPrompt = true}>
+				<User size={22} class="row-icon" />
+				<div class="row-content">
+					<span class="row-title">Sign In</span>
+					<span class="row-subtitle">Sync across devices & share goals</span>
+				</div>
+				<ChevronRight size={18} class="row-action" />
+			</button>
+		{/if}
+	</div>
+
+	<!-- Storage Mode Section -->
+	<div class="section-header">Data Storage</div>
+	<div class="settings-group">
+		<div class="storage-selector">
+			<button 
+				class="storage-option" 
+				class:active={storageMode === 'local'}
+				onclick={storageMode === 'cloud' ? handleStorageModeChange : undefined}
+			>
+				<div class="storage-icon">
+					<Smartphone size={24} />
+				</div>
+				<div class="storage-info">
+					<span class="storage-title">Local Only</span>
+					<span class="storage-desc">Data stays on this device</span>
+				</div>
+				{#if storageMode === 'local'}
+					<div class="storage-check">
+						<CheckCircle size={20} />
+					</div>
+				{/if}
+			</button>
+			
+			<button 
+				class="storage-option" 
+				class:active={storageMode === 'cloud'}
+				onclick={storageMode === 'local' ? handleStorageModeChange : undefined}
+			>
+				<div class="storage-icon cloud">
+					<Server size={24} />
+				</div>
+				<div class="storage-info">
+					<span class="storage-title">Cloud Backup</span>
+					<span class="storage-desc">Sync & share across devices</span>
+				</div>
+				{#if storageMode === 'cloud'}
+					<div class="storage-check">
+						<CheckCircle size={20} />
+					</div>
+				{/if}
+			</button>
+		</div>
+
+		{#if $cloudSyncEnabled && $isAuthenticated}
+			<button class="settings-row sync-row" onclick={handleSyncNow} disabled={syncing}>
+				<span class="row-icon" class:spinning={syncing}>
+					<RefreshCw size={22} />
+				</span>
+				<div class="row-content">
+					<span class="row-title">{syncing ? 'Syncing...' : 'Sync Now'}</span>
+					<span class="row-subtitle">Push local changes to cloud</span>
+				</div>
+				<ChevronRight size={18} class="row-action" />
+			</button>
+		{/if}
+	</div>
+
+	{#if syncMessage}
+		<div class="sync-message {syncMessage.type}">
+			{#if syncMessage.type === 'success'}
+				<CheckCircle size={18} />
+			{:else}
+				<AlertCircle size={18} />
+			{/if}
+			{syncMessage.text}
+		</div>
+	{/if}
+
+	<!-- Privacy Note -->
+	<div class="privacy-card">
+		<Shield size={20} />
+		<div>
+			<strong>Your data, your choice</strong>
+			<p>
+				{#if storageMode === 'local'}
+					All data stays privately on your device. Nothing is sent to our servers.
+				{:else}
+					Data is encrypted and synced to enable backup & sharing. You can switch back to local-only anytime.
+				{/if}
+			</p>
+		</div>
+	</div>
+
 	<!-- Data Section -->
-	<div class="section-header">Data</div>
+	<div class="section-header">Export & Import</div>
 	<div class="settings-group">
 		<button class="settings-row" onclick={handleJsonExport} disabled={exporting}>
 			<FileJson size={22} class="row-icon" />
@@ -135,31 +331,6 @@
 		</div>
 	{/if}
 
-	<!-- Sync Section -->
-	<div class="section-header">Sync</div>
-	<div class="settings-group">
-		<div class="settings-row coming-soon">
-			<Cloud size={22} class="row-icon" />
-			<div class="row-content">
-				<span class="row-title">Cloud Sync</span>
-				<span class="row-subtitle">End-to-end encrypted</span>
-			</div>
-			<span class="badge">Soon</span>
-		</div>
-	</div>
-
-	<!-- Privacy Section -->
-	<div class="section-header">Privacy</div>
-	<div class="settings-group">
-		<div class="settings-row static">
-			<Shield size={22} class="row-icon" />
-			<div class="row-content">
-				<span class="row-title">Your data stays private</span>
-				<span class="row-subtitle">Stored locally on device. No tracking.</span>
-			</div>
-		</div>
-	</div>
-
 	<!-- Danger Zone -->
 	<div class="section-header danger">Danger Zone</div>
 	<div class="settings-group danger">
@@ -181,6 +352,19 @@
 		<span class="about-version">Version 0.1.0</span>
 	</div>
 </div>
+
+<!-- Auth Prompt Modal -->
+{#if showAuthPrompt}
+	<AuthPrompt 
+		onClose={() => showAuthPrompt = false}
+		message="Sign in to enable cloud backup and sync"
+	/>
+{/if}
+
+<!-- Cloud Sync Prompt Modal -->
+{#if showCloudPrompt}
+	<CloudSyncPrompt onClose={() => showCloudPrompt = false} />
+{/if}
 
 <!-- Clear Data Confirmation -->
 {#if showClearConfirm}
@@ -246,7 +430,7 @@
 		border-bottom: none;
 	}
 
-	.settings-row:active:not(.static):not(.coming-soon) {
+	.settings-row:active:not(.static):not(.coming-soon):not(.account-row) {
 		background: var(--color-surface-active);
 	}
 
@@ -254,14 +438,41 @@
 		opacity: 0.5;
 	}
 
-	.settings-row.static,
-	.settings-row.coming-soon {
+	.account-row {
 		cursor: default;
+		padding: var(--space-4);
 	}
 
-	.settings-row :global(.row-icon) {
+	.avatar {
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		background: var(--color-surface-hover);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-text-muted);
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+
+	.avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.settings-row :global(.row-icon),
+	.settings-row .row-icon {
 		color: var(--color-primary);
 		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.settings-row :global(.row-icon.logout) {
+		color: var(--color-text-muted);
 	}
 
 	.row-content {
@@ -285,17 +496,119 @@
 		flex-shrink: 0;
 	}
 
-	.badge {
-		padding: var(--space-1) var(--space-2);
-		font-size: 0.6875rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		color: var(--color-accent);
-		background: var(--color-accent-soft);
-		border-radius: var(--radius-sm);
+	/* Storage Selector */
+	.storage-selector {
+		display: flex;
+		flex-direction: column;
+		gap: 0;
 	}
 
-	.import-message {
+	.storage-option {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		background: none;
+		border: none;
+		border-bottom: 0.5px solid var(--color-border);
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		opacity: 0.6;
+	}
+
+	.storage-option:last-child {
+		border-bottom: none;
+	}
+
+	.storage-option.active {
+		opacity: 1;
+		background: var(--color-primary-soft);
+	}
+
+	.storage-option:hover:not(.active) {
+		background: var(--color-surface-hover);
+		opacity: 0.8;
+	}
+
+	.storage-icon {
+		width: 48px;
+		height: 48px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-surface-hover);
+		border-radius: var(--radius-md);
+		color: var(--color-text-muted);
+		flex-shrink: 0;
+	}
+
+	.storage-option.active .storage-icon {
+		background: var(--color-primary);
+		color: white;
+	}
+
+	.storage-icon.cloud {
+		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+		color: white;
+	}
+
+	.storage-info {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.storage-title {
+		font-weight: 600;
+		font-size: 1rem;
+	}
+
+	.storage-desc {
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+	}
+
+	.storage-check {
+		color: var(--color-primary);
+	}
+
+	.spinning {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	/* Privacy Card */
+	.privacy-card {
+		display: flex;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		background: var(--color-success-soft);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-6);
+		color: var(--color-success);
+	}
+
+	.privacy-card strong {
+		display: block;
+		margin-bottom: var(--space-1);
+	}
+
+	.privacy-card p {
+		font-size: 0.8125rem;
+		margin: 0;
+		opacity: 0.9;
+	}
+
+	/* Messages */
+	.import-message,
+	.sync-message {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -305,16 +618,19 @@
 		margin-bottom: var(--space-6);
 	}
 
-	.import-message.success {
+	.import-message.success,
+	.sync-message.success {
 		background: var(--color-success-soft);
 		color: var(--color-success);
 	}
 
-	.import-message.error {
+	.import-message.error,
+	.sync-message.error {
 		background: rgba(248, 113, 113, 0.1);
 		color: var(--color-error);
 	}
 
+	/* About */
 	.about-section {
 		display: flex;
 		flex-direction: column;
