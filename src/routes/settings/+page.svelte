@@ -5,13 +5,18 @@
 	import { 
 		Download, Upload, FileJson, FileSpreadsheet, Cloud, ChevronRight, 
 		Shield, AlertCircle, CheckCircle, Trash2, LogOut, User, 
-		Smartphone, Server, RefreshCw, X
+		Smartphone, Server, RefreshCw, X, Globe, Settings as SettingsIcon, Users
 	} from 'lucide-svelte';
+	import { Capacitor } from '@capacitor/core';
+	import ServerUrl from '$lib/capacitor/server-url';
 	import { Toggle } from '$lib/components';
 	import { 
-		currentUser, cloudSyncEnabled, enableCloudSync, disableCloudSync,
-		syncLocalToCloud, syncCloudToLocal
+		currentUser, socialModeEnabled, enableSocialMode, disableSocialMode,
+		syncLocalToCloud, syncCloudToLocal, deleteAllData
 	} from '$lib/data';
+	
+	// Legacy alias for compatibility
+	const cloudSyncEnabled = socialModeEnabled;
 	import { isAuthenticated, signOut, authLoading } from '$lib/data/auth-store';
 	import AuthPrompt from '$lib/components/AuthPrompt.svelte';
 	import CloudSyncPrompt from '$lib/components/CloudSyncPrompt.svelte';
@@ -26,9 +31,27 @@
 	let clearing = $state(false);
 	let showAuthPrompt = $state(false);
 	let showCloudPrompt = $state(false);
+	let showServerUrlConfig = $state(false);
+	let serverUrl = $state('');
+	let serverUrlInput = $state('');
+	let isAndroid = $derived(Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android');
 
-	// Storage mode: 'local' or 'cloud'
-	let storageMode = $derived($cloudSyncEnabled ? 'cloud' : 'local');
+	// Habit mode: 'personal' (local) or 'social' (server)
+	let habitMode = $derived($socialModeEnabled ? 'social' : 'personal');
+
+	// Load server URL on mount if Android
+	import { onMount } from 'svelte';
+	onMount(async () => {
+		if (isAndroid) {
+			try {
+				const result = await ServerUrl.getServerUrl();
+				serverUrl = result.url;
+				serverUrlInput = result.url;
+			} catch (e) {
+				console.error('Failed to get server URL:', e);
+			}
+		}
+	});
 
 	async function handleJsonExport() {
 		exporting = true;
@@ -79,22 +102,15 @@
 	async function handleClearAllData() {
 		clearing = true;
 		try {
-			await db.transaction('rw', [
-				db.habits, db.checkIns, db.checkInContexts,
-				db.goals, db.goalHabits, db.successCriteria, db.habitSchedules
-			], async () => {
-				await db.habits.clear();
-				await db.checkIns.clear();
-				await db.checkInContexts.clear();
-				await db.goals.clear();
-				await db.goalHabits.clear();
-				await db.successCriteria.clear();
-				await db.habitSchedules.clear();
-			});
+			await deleteAllData();
 			showClearConfirm = false;
 			window.location.reload();
 		} catch (err) {
 			console.error('Failed to clear data:', err);
+			importMessage = {
+				type: 'error',
+				text: err instanceof Error ? err.message : 'Failed to clear all data'
+			};
 		} finally {
 			clearing = false;
 		}
@@ -104,33 +120,33 @@
 		await signOut();
 	}
 
-	function handleStorageModeChange() {
+	function handleHabitModeChange() {
 		if (!$isAuthenticated) {
 			// Need to sign in first
 			showAuthPrompt = true;
 			return;
 		}
 
-		if ($cloudSyncEnabled) {
-			// Disable cloud sync
-			handleDisableCloud();
+		if ($socialModeEnabled) {
+			// Switch back to personal mode
+			handleDisableSocial();
 		} else {
-			// Enable cloud sync
+			// Switch to social mode
 			showCloudPrompt = true;
 		}
 	}
 
-	async function handleDisableCloud() {
+	async function handleDisableSocial() {
 		try {
-			await disableCloudSync();
+			await disableSocialMode();
 			syncMessage = {
 				type: 'success',
-				text: 'Cloud sync disabled. Your data stays on this device.'
+				text: 'Switched to personal mode. Your personal habits are now visible.'
 			};
 		} catch (e) {
 			syncMessage = {
 				type: 'error',
-				text: e instanceof Error ? e.message : 'Failed to disable cloud sync'
+				text: e instanceof Error ? e.message : 'Failed to switch mode'
 			};
 		}
 	}
@@ -154,6 +170,61 @@
 			};
 		} finally {
 			syncing = false;
+		}
+	}
+
+	async function handleSetServerUrl() {
+		if (!isAndroid) return;
+
+		try {
+			await ServerUrl.setServerUrl({ url: serverUrlInput });
+			serverUrl = serverUrlInput;
+			showServerUrlConfig = false;
+			syncMessage = {
+				type: 'success',
+				text: 'Server URL updated. App will reload...'
+			};
+		} catch (e) {
+			syncMessage = {
+				type: 'error',
+				text: e instanceof Error ? e.message : 'Failed to update server URL'
+			};
+		}
+	}
+
+	async function handleCheckForUpdates() {
+		if (!isAndroid) return;
+
+		try {
+			await ServerUrl.checkForUpdates();
+			syncMessage = {
+				type: 'success',
+				text: 'Checking for updates...'
+			};
+		} catch (e) {
+			syncMessage = {
+				type: 'error',
+				text: e instanceof Error ? e.message : 'Failed to check for updates'
+			};
+		}
+	}
+
+	async function handleResetToLocal() {
+		if (!isAndroid) return;
+
+		try {
+			await ServerUrl.resetToLocal();
+			serverUrl = '';
+			serverUrlInput = '';
+			syncMessage = {
+				type: 'success',
+				text: 'Reset to local assets. App will reload...'
+			};
+		} catch (e) {
+			syncMessage = {
+				type: 'error',
+				text: e instanceof Error ? e.message : 'Failed to reset'
+			};
 		}
 	}
 </script>
@@ -200,23 +271,23 @@
 		{/if}
 	</div>
 
-	<!-- Storage Mode Section -->
-	<div class="section-header">Data Storage</div>
+	<!-- Habit Mode Section -->
+	<div class="section-header">Habit Mode</div>
 	<div class="settings-group">
 		<div class="storage-selector">
 			<button 
 				class="storage-option" 
-				class:active={storageMode === 'local'}
-				onclick={storageMode === 'cloud' ? handleStorageModeChange : undefined}
+				class:active={habitMode === 'personal'}
+				onclick={habitMode === 'social' ? handleHabitModeChange : undefined}
 			>
 				<div class="storage-icon">
 					<Smartphone size={24} />
 				</div>
 				<div class="storage-info">
-					<span class="storage-title">Local Only</span>
-					<span class="storage-desc">Data stays on this device</span>
+					<span class="storage-title">Personal</span>
+					<span class="storage-desc">Private habits on this device</span>
 				</div>
-				{#if storageMode === 'local'}
+				{#if habitMode === 'personal'}
 					<div class="storage-check">
 						<CheckCircle size={20} />
 					</div>
@@ -225,17 +296,19 @@
 			
 			<button 
 				class="storage-option" 
-				class:active={storageMode === 'cloud'}
-				onclick={storageMode === 'local' ? handleStorageModeChange : undefined}
+				class:active={habitMode === 'social'}
+				class:disabled={!$isAuthenticated}
+				onclick={habitMode === 'personal' && $isAuthenticated ? handleHabitModeChange : undefined}
+				disabled={!$isAuthenticated}
 			>
 				<div class="storage-icon cloud">
-					<Server size={24} />
+					<Users size={24} />
 				</div>
 				<div class="storage-info">
-					<span class="storage-title">Cloud Backup</span>
-					<span class="storage-desc">Sync & share across devices</span>
+					<span class="storage-title">Social</span>
+					<span class="storage-desc">Shareable habits on server</span>
 				</div>
-				{#if storageMode === 'cloud'}
+				{#if habitMode === 'social'}
 					<div class="storage-check">
 						<CheckCircle size={20} />
 					</div>
@@ -243,14 +316,12 @@
 			</button>
 		</div>
 
-		{#if $cloudSyncEnabled && $isAuthenticated}
-			<button class="settings-row sync-row" onclick={handleSyncNow} disabled={syncing}>
-				<span class="row-icon" class:spinning={syncing}>
-					<RefreshCw size={22} />
-				</span>
+		{#if !$isAuthenticated}
+			<button class="settings-row" onclick={() => showAuthPrompt = true}>
+				<User size={22} class="row-icon" />
 				<div class="row-content">
-					<span class="row-title">{syncing ? 'Syncing...' : 'Sync Now'}</span>
-					<span class="row-subtitle">Push local changes to cloud</span>
+					<span class="row-title">Sign In Required</span>
+					<span class="row-subtitle">Sign in to switch to social mode</span>
 				</div>
 				<ChevronRight size={18} class="row-action" />
 			</button>
@@ -272,16 +343,81 @@
 	<div class="privacy-card">
 		<Shield size={20} />
 		<div>
-			<strong>Your data, your choice</strong>
+			<strong>Personal & Social are separate</strong>
 			<p>
-				{#if storageMode === 'local'}
-					All data stays privately on your device. Nothing is sent to our servers.
+				{#if habitMode === 'personal'}
+					Your personal habits stay private on this device. Social habits are separate and only visible when you switch to social mode.
 				{:else}
-					Data is encrypted and synced to enable backup & sharing. You can switch back to local-only anytime.
+					You're viewing social habits. Personal habits are hidden and remain on your device. Switch back anytime.
 				{/if}
 			</p>
 		</div>
 	</div>
+
+	<!-- App Update Section (Android only) -->
+	{#if isAndroid}
+		<div class="section-header">App Updates</div>
+		<div class="settings-group">
+			<div class="settings-row static">
+				<Globe size={22} class="row-icon" />
+				<div class="row-content">
+					<span class="row-title">Server URL</span>
+					<span class="row-subtitle">
+						{#if serverUrl}
+							{serverUrl}
+						{:else}
+							Using local assets
+						{/if}
+					</span>
+				</div>
+				<button 
+					class="row-action-btn"
+					onclick={() => showServerUrlConfig = !showServerUrlConfig}
+				>
+					<SettingsIcon size={18} />
+				</button>
+			</div>
+
+			{#if showServerUrlConfig}
+				<div class="server-url-config">
+					<input
+						type="url"
+						class="url-input"
+						placeholder="https://your-domain.com"
+						bind:value={serverUrlInput}
+						onkeydown={(e) => e.key === 'Enter' && handleSetServerUrl()}
+					/>
+					<div class="url-actions">
+						<button class="btn btn-secondary" onclick={() => showServerUrlConfig = false}>
+							Cancel
+						</button>
+						<button class="btn btn-primary" onclick={handleSetServerUrl}>
+							Save
+						</button>
+					</div>
+				</div>
+			{/if}
+
+			{#if serverUrl}
+				<button class="settings-row" onclick={handleCheckForUpdates}>
+					<RefreshCw size={22} class="row-icon" />
+					<div class="row-content">
+						<span class="row-title">Check for Updates</span>
+						<span class="row-subtitle">Reload from server</span>
+					</div>
+					<ChevronRight size={18} class="row-action" />
+				</button>
+				<button class="settings-row" onclick={handleResetToLocal}>
+					<Smartphone size={22} class="row-icon" />
+					<div class="row-content">
+						<span class="row-title">Use Local Assets</span>
+						<span class="row-subtitle">Reset to bundled version</span>
+					</div>
+					<ChevronRight size={18} class="row-action" />
+				</button>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Data Section -->
 	<div class="section-header">Export & Import</div>
@@ -357,7 +493,7 @@
 {#if showAuthPrompt}
 	<AuthPrompt 
 		onClose={() => showAuthPrompt = false}
-		message="Sign in to enable cloud backup and sync"
+		message="Sign in to enable social mode"
 	/>
 {/if}
 
@@ -376,7 +512,13 @@
 			<div class="sheet-content">
 				<AlertCircle size={48} style="color: var(--color-error); margin-bottom: var(--space-4);" />
 				<h3>Clear All Data?</h3>
-				<p>This will permanently delete all your habits, goals, check-ins, and settings. This cannot be undone.</p>
+				<p>
+					{#if $isAuthenticated && $cloudSyncEnabled}
+						This will permanently delete all your data from the server and local storage. This cannot be undone.
+					{:else}
+						This will permanently delete all your habits, goals, check-ins, and settings from local storage. This cannot be undone.
+					{/if}
+				</p>
 			</div>
 			<div class="sheet-actions">
 				<button class="btn btn-secondary" onclick={() => showClearConfirm = false}>Cancel</button>
@@ -726,5 +868,62 @@
 		background: var(--color-border);
 		border-radius: var(--radius-full);
 		margin: var(--space-2) auto var(--space-4);
+	}
+
+	/* Server URL Configuration */
+	.row-action-btn {
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		cursor: pointer;
+		padding: var(--space-1);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: var(--radius-sm);
+		transition: all var(--transition-fast);
+	}
+
+	.row-action-btn:hover {
+		background: var(--color-surface-hover);
+		color: var(--color-text);
+	}
+
+	.server-url-config {
+		padding: var(--space-4);
+		border-top: 0.5px solid var(--color-border);
+		background: var(--color-surface-hover);
+	}
+
+	.url-input {
+		width: 100%;
+		padding: var(--space-3);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		color: var(--color-text);
+		font-size: 0.9375rem;
+		margin-bottom: var(--space-3);
+		font-family: inherit;
+	}
+
+	.url-input:focus {
+		outline: none;
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 2px var(--color-primary-soft);
+	}
+
+	.url-input::placeholder {
+		color: var(--color-text-muted);
+	}
+
+	.url-actions {
+		display: flex;
+		gap: var(--space-3);
+	}
+
+	.url-actions .btn {
+		flex: 1;
+		padding: var(--space-3);
 	}
 </style>

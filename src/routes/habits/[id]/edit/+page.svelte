@@ -6,8 +6,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { getHabit, updateHabit } from '$lib/db/habits';
-	import { getReminderForHabit, upsertReminder, deleteReminder } from '$lib/db/reminders';
+	import { getHabit, updateHabit } from '$lib/data/habits';
+	import { getReminderForHabit, upsertReminder, deleteReminder } from '$lib/data/reminders';
 	import type { Habit, HabitType, TargetDirection, ReminderType } from '$lib/db/schema';
 	import { ArrowLeft, Check, Bell, Clock, Shuffle } from 'lucide-svelte';
 	import { Toggle } from '$lib/components';

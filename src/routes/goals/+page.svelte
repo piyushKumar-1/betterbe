@@ -4,9 +4,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import { getActiveGoals, getGoalHabits, updateGoal, updateGoalStatus } from '$lib/db/goals';
-	import { getHabit } from '$lib/db/habits';
-	import { getAllCheckInsForHabit } from '$lib/db/checkins';
+	import { getActiveGoals, getGoalHabits, updateGoal, updateGoalStatus } from '$lib/data/goals';
+	import { getHabit } from '$lib/data/habits';
+	import { getAllCheckInsForHabit } from '$lib/data/checkins';
 	import type { Goal, Habit } from '$lib/db/schema';
 	import { Plus, Target, Clock, AlertCircle, CheckCircle, TrendingUp, TrendingDown, Minus, Check, Calendar, Sparkles } from 'lucide-svelte';
 

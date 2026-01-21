@@ -148,13 +148,54 @@ export interface SharingLayer {
 }
 
 /**
+ * Sync data structure for pushing to server
+ */
+export interface SyncDataPayload {
+    habits: Array<{
+        local_id: string;
+        name: string;
+        description: string | null;
+        habit_type: string;
+        unit: string | null;
+        target_value: number | null;
+        target_direction: string;
+        archived: boolean;
+        created_at: string;
+        updated_at: string;
+    }>;
+    check_ins: Array<{
+        local_id: string;
+        habit_local_id: string;
+        value: number;
+        note: string | null;
+        effective_date: string;
+        created_at: string;
+    }>;
+    goals: Array<{
+        local_id: string;
+        name: string;
+        description: string | null;
+        deadline: string;
+        status: string;
+        created_at: string;
+        updated_at: string;
+    }>;
+    goal_habits: Array<{
+        goal_local_id: string;
+        habit_local_id: string;
+        weight: number;
+    }>;
+    synced_at: string;
+}
+
+/**
  * Sync layer interface - for remote only
  */
 export interface SyncLayer {
     getSyncStatus(): Promise<SyncStatus>;
     enableCloudSync(): Promise<void>;
     disableCloudSync(): Promise<void>;
-    pushData(): Promise<{ syncedHabits: number; syncedCheckins: number; syncedGoals: number }>;
-    pullData(): Promise<void>;
+    pushData(data: SyncDataPayload): Promise<{ syncedHabits: number; syncedCheckins: number; syncedGoals: number }>;
+    pullData(): Promise<SyncDataPayload>;
 }
 

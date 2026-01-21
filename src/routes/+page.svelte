@@ -6,8 +6,8 @@
 	import { base } from '$app/paths';
 	import { APP_NAME } from '$lib/config/branding';
 	import { selectedDate, formattedDate, isToday, habits, todayCheckIns } from '$lib/stores/ui';
-	import { getActiveHabits } from '$lib/db/habits';
-	import { getCheckInsForDate, toggleBinaryCheckIn, createCheckIn, updateCheckIn, deleteCheckIn } from '$lib/db/checkins';
+	import { getActiveHabits } from '$lib/data/habits';
+	import { getCheckInsForDate, toggleBinaryCheckIn, createCheckIn, updateCheckIn, deleteCheckIn } from '$lib/data/checkins';
 	import { calculateMomentum } from '$lib/analytics/momentum';
 	import type { Habit, CheckIn } from '$lib/db/schema';
 	import type { MomentumData } from '$lib/analytics/momentum';

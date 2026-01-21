@@ -4,7 +4,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import { getAllHabits } from '$lib/db/habits';
+	import { getAllHabits } from '$lib/data/habits';
 	import { calculateMomentum } from '$lib/analytics/momentum';
 	import { calculateStreaks } from '$lib/analytics/streaks';
 	import type { Habit } from '$lib/db/schema';

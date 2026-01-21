@@ -1,35 +1,109 @@
 <!--
-	Profile Page - Analytics & Insights
+	Profile Page - Analytics & Insights with Data Source Tabs
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import { getAllHabits } from '$lib/db/habits';
-	import { getAllCheckIns } from '$lib/db/checkins';
+	import { getActiveHabits, getAllHabits } from '$lib/data/habits';
+	import { getAllCheckIns } from '$lib/data/checkins';
 	import { generateTextSummary } from '$lib/analytics/summary';
 	import { findCorrelations, type Correlation } from '$lib/analytics/heuristics';
 	import type { Habit, CheckIn } from '$lib/db/schema';
-	import { User, Calendar, Brain, Sparkles, TrendingUp } from 'lucide-svelte';
+	import { User, Calendar, Brain, Sparkles, TrendingUp, Smartphone, Users, RefreshCw } from 'lucide-svelte';
+	import { currentUser, socialModeEnabled, getDataLayer } from '$lib/data';
+	import { isAuthenticated } from '$lib/data/auth-store';
+	import { localData } from '$lib/data/local';
+	import { remoteData } from '$lib/data/remote';
 
 	let habits = $state<Habit[]>([]);
 	let checkIns = $state<CheckIn[]>([]);
 	let timeRange = $state<7 | 14 | 30>(7);
 	let loading = $state(true);
+	let habitMode = $state<'personal' | 'social'>('personal');
+	let refreshing = $state(false);
 	
 	let summary = $derived(generateTextSummary(habits, checkIns, timeRange));
 	let correlations = $derived(findCorrelations(habits, checkIns));
 
-	onMount(async () => {
+	// Determine current habit mode - when social mode is enabled, ONLY use server
+	let currentHabitMode = $derived(
+		$isAuthenticated && $socialModeEnabled ? 'social' : 'personal'
+	);
+
+	// Update habit mode when auth/social mode state changes
+	$effect(() => {
+		const newMode = $isAuthenticated && $socialModeEnabled ? 'social' : 'personal';
+		if (newMode !== habitMode) {
+			habitMode = newMode;
+			loadData();
+		}
+	});
+
+	// When social mode is enabled, force social mode (hide personal habits)
+	$effect(() => {
+		if ($isAuthenticated && $socialModeEnabled && habitMode === 'personal') {
+			habitMode = 'social';
+			loadData();
+		}
+	});
+
+	async function loadData() {
+		loading = true;
 		try {
-			const [h, c] = await Promise.all([
-				getAllHabits(),
-				getAllCheckIns()
-			]);
+			let h: Habit[];
+			let c: CheckIn[];
+
+			if (habitMode === 'social' && $isAuthenticated && $socialModeEnabled) {
+				// Load social habits from server
+				h = await remoteData.getActiveHabits();
+				// Get check-ins for all social habits
+				c = [];
+				for (const habit of h) {
+					const checkIns = await remoteData.getCheckInsForHabit(habit.id);
+					c.push(...checkIns);
+				}
+			} else {
+				// Load personal habits from local
+				h = await getAllHabits();
+				c = await getAllCheckIns();
+			}
+
 			habits = h;
 			checkIns = c;
+		} catch (err) {
+			console.error('Failed to load data:', err);
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function switchHabitMode(newMode: 'personal' | 'social') {
+		if (newMode === 'social' && (!$isAuthenticated || !$socialModeEnabled)) {
+			// Can't switch to social if not logged in or social mode not enabled
+			return;
+		}
+		
+		// When social mode is enabled, prevent switching to personal (personal habits are hidden)
+		if (newMode === 'personal' && $isAuthenticated && $socialModeEnabled) {
+			// Can't view personal habits when in social mode
+			return;
+		}
+		
+		habitMode = newMode;
+		await loadData();
+	}
+
+	async function refreshData() {
+		refreshing = true;
+		try {
+			await loadData();
+		} finally {
+			refreshing = false;
+		}
+	}
+
+	onMount(() => {
+		loadData();
 	});
 
 	function getGreeting(): string {
@@ -44,14 +118,89 @@
 	<header class="header">
 		<div class="profile-header">
 			<div class="avatar">
-				<User size={32} />
+				{#if $isAuthenticated && $currentUser}
+					{#if $currentUser.avatarUrl}
+						<img src={$currentUser.avatarUrl} alt={$currentUser.name || 'Avatar'} />
+					{:else}
+						<User size={32} />
+					{/if}
+				{:else}
+					<User size={32} />
+				{/if}
 			</div>
 			<div class="greeting">
 				<span class="greeting-text">{getGreeting()}</span>
-				<h1>Your Insights</h1>
+				<h1>
+					{#if $isAuthenticated && $currentUser}
+						{$currentUser.name || 'Your'} Insights
+					{:else}
+						Your Insights
+					{/if}
+				</h1>
 			</div>
 		</div>
 	</header>
+
+	<!-- Habit Mode Tabs -->
+	<div class="data-source-tabs">
+		<button 
+			class="source-tab" 
+			class:active={habitMode === 'personal'}
+			class:disabled={$isAuthenticated && $socialModeEnabled}
+			onclick={() => switchHabitMode('personal')}
+			disabled={$isAuthenticated && $socialModeEnabled}
+		>
+			<Smartphone size={18} />
+			<span>Personal</span>
+			{#if habitMode === 'personal' && (!$isAuthenticated || !$socialModeEnabled)}
+				<span class="badge">Active</span>
+			{/if}
+		</button>
+		<button 
+			class="source-tab" 
+			class:active={habitMode === 'social'}
+			class:disabled={!$isAuthenticated || !$socialModeEnabled}
+			onclick={() => switchHabitMode('social')}
+			disabled={!$isAuthenticated || !$socialModeEnabled}
+		>
+			<Users size={18} />
+			<span>Social</span>
+			{#if habitMode === 'social' && $isAuthenticated && $socialModeEnabled}
+				<span class="badge">Active</span>
+			{/if}
+		</button>
+		{#if habitMode === 'social'}
+			<button class="refresh-btn" onclick={refreshData} disabled={refreshing}>
+				<span class:spinning={refreshing}>
+					<RefreshCw size={16} />
+				</span>
+			</button>
+		{/if}
+	</div>
+
+	{#if $isAuthenticated && $socialModeEnabled}
+		<div class="info-banner server-mode">
+			<Users size={18} />
+			<div>
+				<strong>Social Mode Active</strong>
+				<p>Viewing social habits. Personal habits are hidden and remain on your device.</p>
+			</div>
+		</div>
+	{:else if !$isAuthenticated || !$socialModeEnabled}
+		<div class="info-banner">
+			<Smartphone size={18} />
+			<div>
+				<strong>Personal Habits</strong>
+				<p>
+					{#if !$isAuthenticated}
+						Sign in and enable social mode to create shareable habits
+					{:else}
+						Enable social mode in Settings to create shareable habits
+					{/if}
+				</p>
+			</div>
+		</div>
+	{/if}
 
 	<div class="tabs">
 		<button 
@@ -154,6 +303,13 @@
 		align-items: center;
 		justify-content: center;
 		color: var(--color-primary);
+		overflow: hidden;
+	}
+
+	.avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 
 	.greeting {
@@ -170,6 +326,121 @@
 		font-size: 1.5rem;
 		font-weight: 700;
 		letter-spacing: -0.02em;
+	}
+
+	/* Data Source Tabs */
+	.data-source-tabs {
+		display: flex;
+		background: var(--color-surface-solid);
+		padding: 4px;
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-4);
+		gap: 4px;
+		position: relative;
+	}
+
+	.source-tab {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		border: none;
+		background: none;
+		border-radius: var(--radius-md);
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: var(--color-text-muted);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+		position: relative;
+	}
+
+	.source-tab:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.source-tab.active {
+		background: var(--color-surface);
+		color: var(--color-text);
+		box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+	}
+
+	.source-tab .badge {
+		position: absolute;
+		top: -4px;
+		right: -4px;
+		background: var(--color-primary);
+		color: white;
+		font-size: 0.625rem;
+		padding: 2px 6px;
+		border-radius: var(--radius-full);
+		font-weight: 600;
+	}
+
+	.refresh-btn {
+		position: absolute;
+		right: var(--space-2);
+		top: 50%;
+		transform: translateY(-50%);
+		width: 32px;
+		height: 32px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-surface-hover);
+		border: none;
+		border-radius: var(--radius-md);
+		color: var(--color-text-muted);
+		cursor: pointer;
+		transition: all var(--transition-fast);
+	}
+
+	.refresh-btn:hover:not(:disabled) {
+		background: var(--color-surface-active);
+		color: var(--color-text);
+	}
+
+	.refresh-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.spinning {
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+
+	.info-banner {
+		display: flex;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: var(--color-surface-hover);
+		border-radius: var(--radius-lg);
+		margin-bottom: var(--space-4);
+		color: var(--color-text-muted);
+	}
+
+	.info-banner.server-mode {
+		background: var(--color-primary-soft);
+		color: var(--color-primary);
+	}
+
+	.info-banner strong {
+		display: block;
+		color: var(--color-text);
+		margin-bottom: var(--space-1);
+	}
+
+	.info-banner p {
+		font-size: 0.8125rem;
+		margin: 0;
 	}
 
 	.tabs {

@@ -214,7 +214,7 @@ async fn push_data(
         .bind(user.user_id)
         .bind(&habit.name)
         .bind(&habit.description)
-        .bind(&habit.habit_type)
+        .bind(&habit.habit_type.to_lowercase())  // PostgreSQL expects lowercase enum values
         .bind(&habit.unit)
         .bind(habit.target_value)
         .bind(&habit.target_direction)

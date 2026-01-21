@@ -5,8 +5,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { createGoal } from '$lib/db/goals';
-	import { getActiveHabits } from '$lib/db/habits';
+	import { createGoal } from '$lib/data/goals';
+	import { getActiveHabits } from '$lib/data/habits';
 	import type { Habit } from '$lib/db/schema';
 	import { ArrowLeft, Calendar, Link2, Check } from 'lucide-svelte';
 

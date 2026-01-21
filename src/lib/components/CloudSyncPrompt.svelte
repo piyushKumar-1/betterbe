@@ -1,13 +1,12 @@
 <!--
-	Cloud Sync Opt-in Prompt
-	
-	Privacy-friendly messaging for enabling cloud features.
-	No dark patterns - user is in full control.
+	Social Mode Opt-in Prompt
+	Switch from Personal (local) to Social (server) habits
 -->
 <script lang="ts">
-	import { Cloud, Shield, Users, X, Check } from 'lucide-svelte';
-	import { cloudSyncEnabled, currentUser, enableCloudSync } from '$lib/data';
+	import { Users, Shield, Smartphone, X, Check } from 'lucide-svelte';
+	import { socialModeEnabled, currentUser, enableSocialMode, hasLocalData } from '$lib/data';
 	import { isAuthenticated } from '$lib/data/auth-store';
+	import MigrationPrompt from './MigrationPrompt.svelte';
 
 	interface Props {
 		onClose?: () => void;
@@ -17,6 +16,7 @@
 	let { onClose, showForSharing = false }: Props = $props();
 
 	let enabling = $state(false);
+	let showMigration = $state(false);
 	let error = $state('');
 
 	async function handleEnable() {
@@ -24,33 +24,54 @@
 		error = '';
 
 		try {
-			await enableCloudSync();
-			onClose?.();
+			// Check if there's local data to migrate
+			const localDataInfo = await hasLocalData();
+			
+			if (localDataInfo.habits > 0 || localDataInfo.goals > 0) {
+				// Show migration prompt if there's local data
+				showMigration = true;
+			} else {
+				// No local data, just enable social mode
+				await enableSocialMode();
+				onClose?.();
+			}
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Failed to enable cloud sync';
+			error = e instanceof Error ? e.message : 'Failed to enable social mode';
 		} finally {
 			enabling = false;
 		}
 	}
 
+	function handleMigrationComplete() {
+		showMigration = false;
+		onClose?.();
+	}
+
 	const benefits = [
-		{
-			icon: Shield,
-			title: 'Secure Backup',
-			desc: 'Your data is encrypted and backed up safely'
-		},
-		{
-			icon: Cloud,
-			title: 'Sync Across Devices',
-			desc: 'Access your habits from any device'
-		},
 		{
 			icon: Users,
 			title: 'Share Goals',
 			desc: 'Collaborate with friends on shared goals'
+		},
+		{
+			icon: Shield,
+			title: 'Sync Across Devices',
+			desc: 'Access your social habits from any device'
+		},
+		{
+			icon: Smartphone,
+			title: 'Keep Personal Separate',
+			desc: 'Your personal habits stay private on this device'
 		}
 	];
 </script>
+
+{#if showMigration}
+	<MigrationPrompt 
+		onClose={() => { showMigration = false; onClose?.(); }}
+		onComplete={handleMigrationComplete}
+	/>
+{:else}
 
 <div class="prompt-backdrop">
 	<div class="prompt animate-slide-up">
@@ -60,20 +81,20 @@
 
 		<div class="prompt-header">
 			<div class="icon-wrap">
-				<Cloud size={32} />
+				<Users size={32} />
 			</div>
 			<h2>
 				{#if showForSharing}
-					Enable Cloud to Share
+					Switch to Social Mode
 				{:else}
-					Back Up Your Progress
+					Personal vs Social Habits
 				{/if}
 			</h2>
 			<p class="subtitle">
 				{#if showForSharing}
-					Sharing goals with friends requires a secure cloud connection.
+					Sharing goals requires social mode.
 				{:else}
-					Keep your habits safe and accessible everywhere.
+					Create social habits that can be shared, separate from your personal habits.
 				{/if}
 			</p>
 		</div>
@@ -95,8 +116,8 @@
 		<div class="privacy-note">
 			<Shield size={16} />
 			<span>
-				<strong>Your data stays yours.</strong> We never sell or share your personal information. 
-				You can disable cloud sync anytime and your data remains on your device.
+				<strong>Your personal habits stay private.</strong> Personal and social habits are completely separate. 
+				You can switch between modes anytime.
 			</span>
 		</div>
 
@@ -106,7 +127,7 @@
 
 		<div class="actions">
 			<button class="btn btn-secondary" onclick={onClose}>
-				Not Now
+				Stay in Personal Mode
 			</button>
 			<button 
 				class="btn btn-primary" 
@@ -114,19 +135,20 @@
 				disabled={enabling}
 			>
 				{#if enabling}
-					Enabling...
+					Switching...
 				{:else}
 					<Check size={18} />
-					Enable Cloud Sync
+					Enable Social Mode
 				{/if}
 			</button>
 		</div>
 
 		<p class="footer-note">
-			Free forever for personal use. No credit card required.
+			Free forever. No credit card required.
 		</p>
 	</div>
 </div>
+{/if}
 
 <style>
 	.prompt-backdrop {
@@ -278,4 +300,3 @@
 		margin-top: var(--space-4);
 	}
 </style>
-

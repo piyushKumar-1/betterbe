@@ -8,8 +8,10 @@
 import type {
     Habit, CheckIn, Goal, GoalHabit, HabitReminder,
     DataLayer, AuthLayer, SharingLayer, SyncLayer,
-    UserProfile, AuthResponse, SyncStatus, SharedGoal, ActivityFeedItem
+    UserProfile, AuthResponse, SyncStatus, SharedGoal, ActivityFeedItem,
+    SyncDataPayload
 } from './types';
+import { localData } from './local';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -204,12 +206,17 @@ export class RemoteDataLayer implements DataLayer {
     }
 
     async createGoal(input: Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>, habitIds?: string[]): Promise<Goal> {
+        // Ensure deadline is in YYYY-MM-DD format only (no time component)
+        const deadlineStr = typeof input.deadline === 'string'
+            ? input.deadline.split('T')[0].substring(0, 10)  // Handle ISO strings and ensure max 10 chars
+            : input.deadline;
+
         const goal = await api.fetch<any>('/api/goals', {
             method: 'POST',
             body: JSON.stringify({
                 name: input.name,
                 description: input.description,
-                deadline: input.deadline,
+                deadline: deadlineStr,
                 habit_ids: habitIds || [],
             }),
         });
@@ -217,12 +224,19 @@ export class RemoteDataLayer implements DataLayer {
     }
 
     async updateGoal(id: string, updates: Partial<Goal>): Promise<void> {
+        // Ensure deadline is in YYYY-MM-DD format only if provided
+        const deadlineStr = updates.deadline
+            ? (typeof updates.deadline === 'string'
+                ? updates.deadline.split('T')[0].substring(0, 10)
+                : updates.deadline)
+            : undefined;
+
         await api.fetch(`/api/goals/${id}`, {
             method: 'PUT',
             body: JSON.stringify({
                 name: updates.name,
                 description: updates.description,
-                deadline: updates.deadline,
+                deadline: deadlineStr,
                 status: updates.status,
             }),
         });
@@ -439,12 +453,10 @@ export class RemoteSyncLayer implements SyncLayer {
         await api.fetch('/api/sync/disable', { method: 'POST' });
     }
 
-    async pushData(): Promise<{ syncedHabits: number; syncedCheckins: number; syncedGoals: number }> {
-        // This would gather local data and push to server
-        // Implementation depends on local storage format
+    async pushData(data: SyncDataPayload): Promise<{ syncedHabits: number; syncedCheckins: number; syncedGoals: number }> {
         const result = await api.fetch<any>('/api/sync/push', {
             method: 'POST',
-            body: JSON.stringify({ /* local data */ }),
+            body: JSON.stringify(data),
         });
         return {
             syncedHabits: result.synced_habits,
@@ -453,20 +465,61 @@ export class RemoteSyncLayer implements SyncLayer {
         };
     }
 
-    async pullData(): Promise<void> {
-        // This would pull remote data and store locally
-        await api.fetch('/api/sync/pull');
+    async pullData(): Promise<SyncDataPayload> {
+        const data = await api.fetch<any>('/api/sync/pull');
+        // Map server data to SyncDataPayload format
+        return {
+            habits: data.habits.map((h: any) => ({
+                local_id: h.local_id,
+                name: h.name,
+                description: h.description,
+                habit_type: h.habit_type?.toLowerCase() || 'binary', // Backend sends Binary/Numeric, convert to lowercase
+                unit: h.unit,
+                target_value: h.target_value,
+                target_direction: h.target_direction,
+                archived: h.archived,
+                created_at: h.created_at,
+                updated_at: h.updated_at,
+            })),
+            check_ins: data.check_ins.map((c: any) => ({
+                local_id: c.local_id,
+                habit_local_id: c.habit_local_id,
+                value: c.value,
+                note: c.note,
+                effective_date: c.effective_date,
+                created_at: c.created_at,
+            })),
+            goals: data.goals.map((g: any) => ({
+                local_id: g.local_id,
+                name: g.name,
+                description: g.description,
+                deadline: g.deadline,
+                status: g.status,
+                created_at: g.created_at,
+                updated_at: g.updated_at,
+            })),
+            goal_habits: data.goal_habits.map((gh: any) => ({
+                goal_local_id: gh.goal_local_id,
+                habit_local_id: gh.habit_local_id,
+                weight: gh.weight,
+            })),
+            synced_at: data.synced_at,
+        };
     }
 }
 
 // ============ Mapping Functions ============
 
 function mapHabitFromApi(h: any): Habit {
+    // Backend sends capitalized enum values (Binary, Numeric)
+    // Frontend uses lowercase (binary, numeric)
+    const habitType = h.habit_type?.toLowerCase() || 'binary';
+
     return {
         id: h.id,
         name: h.name,
         description: h.description,
-        type: h.habit_type,
+        type: habitType as 'binary' | 'numeric',
         unit: h.unit,
         targetValue: h.target_value,
         targetDirection: h.target_direction?.replace('_', ' ') || 'at_least',
@@ -477,10 +530,16 @@ function mapHabitFromApi(h: any): Habit {
 }
 
 function mapHabitToApi(h: Partial<Habit>): any {
+    // Backend expects capitalized enum values (Binary, Numeric)
+    // Frontend uses lowercase (binary, numeric)
+    const habitType = h.type
+        ? h.type.charAt(0).toUpperCase() + h.type.slice(1)
+        : undefined;
+
     return {
         name: h.name,
         description: h.description,
-        habit_type: h.type,
+        habit_type: habitType,
         unit: h.unit,
         target_value: h.targetValue,
         target_direction: h.targetDirection?.replace(' ', '_'),

@@ -6,9 +6,9 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { getGoal, getGoalHabits, deleteGoal } from '$lib/db/goals';
-	import { getHabit } from '$lib/db/habits';
-	import { getAllCheckInsForHabit } from '$lib/db/checkins';
+	import { getGoal, getGoalHabits, deleteGoal } from '$lib/data/goals';
+	import { getHabit } from '$lib/data/habits';
+	import { getAllCheckInsForHabit } from '$lib/data/checkins';
 	import { generateHeatmapData, type HeatmapData, type HeatmapCell } from '$lib/analytics/heatmap';
 	import type { Goal, Habit } from '$lib/db/schema';
 	import { ArrowLeft, Target, Calendar, Trash2, ChevronRight, AlertCircle, CheckCircle, Clock } from 'lucide-svelte';

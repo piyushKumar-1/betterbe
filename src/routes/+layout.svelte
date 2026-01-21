@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { APP_NAME } from '$lib/config/branding';
 	import { Home, BarChart3, Target, Settings, User } from 'lucide-svelte';
+	import { socialModeEnabled } from '$lib/data';
 
 	let { children } = $props();
 
@@ -45,18 +46,27 @@
 
 	<!-- iOS-style Tab Bar -->
 	<nav class="tab-bar">
-		{#each navItems as item}
-			<a 
-				href="{base}{item.href}" 
-				class="tab-item"
-				class:active={isActive(item.href)}
-			>
-				<span class="tab-icon">
-					<item.icon size={24} strokeWidth={isActive(item.href) ? 2.5 : 1.5} />
-				</span>
-				<span class="tab-label">{item.label}</span>
-			</a>
-		{/each}
+		<!-- Mode indicator bar on top -->
+		{#if $socialModeEnabled}
+			<div class="mode-bar">
+				<span>Social Mode</span>
+			</div>
+		{/if}
+		
+		<div class="tab-items">
+			{#each navItems as item}
+				<a 
+					href="{base}{item.href}" 
+					class="tab-item"
+					class:active={isActive(item.href)}
+				>
+					<span class="tab-icon">
+						<item.icon size={24} strokeWidth={isActive(item.href) ? 2.5 : 1.5} />
+					</span>
+					<span class="tab-label">{item.label}</span>
+				</a>
+			{/each}
+		</div>
 	</nav>
 </div>
 
@@ -89,14 +99,34 @@
 		left: 0;
 		right: 0;
 		display: flex;
-		justify-content: space-around;
+		flex-direction: column;
 		background: rgba(20, 20, 25, 0.92);
 		backdrop-filter: saturate(180%) blur(20px);
 		-webkit-backdrop-filter: saturate(180%) blur(20px);
 		border-top: 0.5px solid rgba(255, 255, 255, 0.1);
+		z-index: 1000;
+	}
+
+	/* Mode indicator bar */
+	.mode-bar {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 3px 0;
+		background: var(--color-primary);
+		font-size: 0.5rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: rgba(255, 255, 255, 0.9);
+		opacity: 0.85;
+	}
+
+	.tab-items {
+		display: flex;
+		justify-content: space-around;
 		padding-top: var(--space-2);
 		padding-bottom: max(var(--space-2), var(--safe-bottom));
-		z-index: 1000;
 	}
 
 	.tab-item {

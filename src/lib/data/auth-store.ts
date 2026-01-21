@@ -7,7 +7,7 @@
 
 import { writable, derived } from 'svelte/store';
 import { remoteAuth } from './remote';
-import { currentUser, cloudSyncEnabled } from './index';
+import { currentUser, socialModeEnabled } from './index';
 import type { UserProfile, AuthResponse } from './types';
 
 /**
@@ -103,7 +103,7 @@ export async function signOut(): Promise<void> {
         await remoteAuth.logout();
     } finally {
         currentUser.set(null);
-        cloudSyncEnabled.set(false);
+        socialModeEnabled.set(false);
         authLoading.set(false);
     }
 }
@@ -116,7 +116,7 @@ export async function checkAuthState(): Promise<void> {
         const user = await remoteAuth.getCurrentUser();
         if (user) {
             currentUser.set(user);
-            cloudSyncEnabled.set(user.cloudSyncEnabled);
+            socialModeEnabled.set(user.cloudSyncEnabled);
         }
     } catch {
         // Not authenticated, that's fine
@@ -128,6 +128,6 @@ export async function checkAuthState(): Promise<void> {
  */
 function setAuthState(response: AuthResponse): void {
     currentUser.set(response.user);
-    cloudSyncEnabled.set(response.user.cloudSyncEnabled);
+    socialModeEnabled.set(response.user.cloudSyncEnabled);
 }
 

@@ -6,8 +6,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { getGoal, updateGoal, getGoalHabits, updateGoalHabits } from '$lib/db/goals';
-	import { getActiveHabits } from '$lib/db/habits';
+	import { getGoal, updateGoal, getGoalHabits, updateGoalHabits } from '$lib/data/goals';
+	import { getActiveHabits } from '$lib/data/habits';
 	import type { Goal, Habit } from '$lib/db/schema';
 	import { ArrowLeft, Check, Link2 } from 'lucide-svelte';
 

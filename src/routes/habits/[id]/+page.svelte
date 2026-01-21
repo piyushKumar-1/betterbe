@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { getHabit, archiveHabit, updateHabit } from '$lib/db/habits';
+	import { getHabit, archiveHabit, updateHabit } from '$lib/data/habits';
 	import { generateHeatmapData } from '$lib/analytics/heatmap';
 	import { calculateRollingAverages } from '$lib/analytics/rolling-average';
 	import { calculateMomentum, getMomentumArrow } from '$lib/analytics/momentum';

@@ -4,8 +4,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
-	import { createHabit } from '$lib/db/habits';
-	import { upsertReminder } from '$lib/db/reminders';
+	import { createHabit } from '$lib/data/habits';
+	import { upsertReminder } from '$lib/data/reminders';
 	import type { HabitType, TargetDirection, ReminderType } from '$lib/db/schema';
 	import { ArrowLeft, Check, Hash, Bell, Clock, Shuffle } from 'lucide-svelte';
 	import { Toggle } from '$lib/components';
